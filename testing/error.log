@@ -1,0 +1,54 @@
+[21-Sep-2007 11:11:56] PHP Parse error:  syntax error, unexpected '<' in D:\www\includes\november\validators\ConstrainedValueListValidator.php on line 2
+[21-Sep-2007 11:12:23] PHP Fatal error:  Class 'ConstrainedListValidator' not found in D:\www\includes\november\testing\testcases\Validators\TestConstrainedValueList.php on line 28
+[21-Sep-2007 11:13:24] PHP Fatal error:  Class 'ConstrainedListValidator' not found in D:\www\includes\november\testing\testcases\Validators\TestConstrainedValueList.php on line 31
+[21-Sep-2007 11:14:05] PHP Fatal error:  Class 'ConstrainedListValidator' not found in D:\www\includes\november\testing\testcases\Validators\TestConstrainedValueList.php on line 31
+[21-Sep-2007 11:17:58] PHP Fatal error:  Class 'ConstraindValueListValidator' not found in D:\www\includes\november\testing\testcases\Validators\TestConstrainedValueList.php on line 30
+[21-Sep-2007 11:18:09] PHP Fatal error:  Cannot redeclare class ConstrainedValueListValidator in D:\www\includes\november\testing\testcases\Validators\TestConstrainedValueList.php on line 31
+[27-Jan-2008 16:31:41] PHP Warning:  include_once(D:\www\includes\injector\testing/config.php): failed to open stream: No such file or directory in D:\www\includes\injector\testing\run.php on line 32
+[27-Jan-2008 16:31:41] PHP Warning:  include_once(): Failed opening 'D:\www\includes\injector\testing/config.php' for inclusion (include_path='.;D:\Programs\wamp\php\pear;d:\www\includes') in D:\www\includes\injector\testing\run.php on line 32
+[27-Jan-2008 16:31:41] PHP Fatal error:  Call to undefined function ifset() in D:\www\includes\injector\testing\run.php on line 45
+[27-Jan-2008 16:31:47] PHP Fatal error:  Call to undefined function ifset() in D:\www\includes\injector\testing\run.php on line 43
+[27-Jan-2008 16:53:40] PHP Fatal error:  Class 'NovemberInjector' not found in D:\www\includes\injector\testing\testcases\TestInjector.php on line 17
+[27-Jan-2008 17:29:16] PHP Warning:  include_once(D:\www\includes\injector\testing/NovemberInjector.php): failed to open stream: No such file or directory in D:\www\includes\injector\testing\testcases\TestInjector.php on line 3
+[27-Jan-2008 17:29:16] PHP Warning:  include_once(): Failed opening 'D:\www\includes\injector\testing/NovemberInjector.php' for inclusion (include_path='.;D:\Programs\wamp\php\pear;d:\www\includes') in D:\www\includes\injector\testing\testcases\TestInjector.php on line 3
+[27-Jan-2008 17:29:36] PHP Fatal error:  Call to undefined method NovemberInjector::setServiceDirectory() in D:\www\includes\injector\testing\testcases\TestInjector.php on line 10
+[27-Jan-2008 17:30:08] PHP Fatal error:  Call to undefined method NovemberInjector::setServiceDirectory() in D:\www\includes\injector\testing\testcases\TestInjector.php on line 10
+[27-Jan-2008 17:30:21] PHP Fatal error:  Call to undefined method NovemberInjector::inject() in D:\www\includes\injector\NovemberInjector.php on line 97
+[27-Jan-2008 17:33:03] PHP Fatal error:  Call to undefined function ifset() in D:\www\includes\injector\testing\run.php on line 43
+[27-Jan-2008 17:33:21] PHP Fatal error:  Call to undefined method TestInjector::assertEquals() in D:\www\includes\injector\testing\testcases\TestInjector.php on line 17
+[27-Jan-2008 17:33:29] PHP Fatal error:  Call to a member function getDumper() on a non-object in D:\www\includes\simpletest\test_case.php on line 303
+[27-Jan-2008 17:35:44] PHP Fatal error:  Call to a member function getDumper() on a non-object in D:\www\includes\simpletest\test_case.php on line 303
+[27-Jan-2008 17:36:27] PHP Fatal error:  Call to a member function getDumper() on a non-object in D:\www\includes\simpletest\test_case.php on line 306
+[27-Jan-2008 17:44:53] PHP Fatal error:  Call to a member function getDumper() on a non-object in D:\www\includes\simpletest\test_case.php on line 303
+[27-Jan-2008 17:45:21] PHP Fatal error:  Call to a member function getDumper() on a non-object in D:\www\includes\simpletest\test_case.php on line 303
+[27-Jan-2008 17:45:30] PHP Fatal error:  Call to a member function getDumper() on a non-object in D:\www\includes\simpletest\test_case.php on line 303
+[27-Jan-2008 17:46:27] PHP Fatal error:  Call to a member function getDumper() on a non-object in D:\www\includes\simpletest\test_case.php on line 303
+[27-Jan-2008 17:47:12] PHP Fatal error:  Call to a member function getDumper() on a non-object in D:\www\includes\simpletest\test_case.php on line 303
+[27-Jan-2008 17:47:32] PHP Fatal error:  Call to a member function getDumper() on a non-object in D:\www\includes\simpletest\test_case.php on line 303
+[27-Jan-2008 17:48:00] PHP Fatal error:  Call to a member function getDumper() on a non-object in D:\www\includes\simpletest\test_case.php on line 303
+[27-Jan-2008 17:48:32] PHP Parse error:  syntax error, unexpected ';' in D:\www\includes\simpletest\test_case.php on line 596
+[27-Jan-2008 17:48:37] PHP Fatal error:  Call to a member function getDumper() on a non-object in D:\www\includes\simpletest\test_case.php on line 303
+[27-Jan-2008 17:49:06] PHP Fatal error:  Call to a member function getDumper() on a non-object in D:\www\includes\simpletest\test_case.php on line 303
+[27-Jan-2008 17:49:30] PHP Fatal error:  Call to a member function getDumper() on a non-object in D:\www\includes\simpletest\test_case.php on line 303
+[27-Jan-2008 17:49:42] PHP Fatal error:  Call to a member function getDumper() on a non-object in D:\www\includes\simpletest\test_case.php on line 303
+[27-Jan-2008 17:49:50] PHP Fatal error:  Call to a member function getDumper() on a non-object in D:\www\includes\simpletest\test_case.php on line 303
+[27-Jan-2008 17:50:46] PHP Fatal error:  Call to a member function getDumper() on a non-object in D:\www\includes\simpletest\test_case.php on line 304
+[27-Jan-2008 17:51:04] PHP Fatal error:  Call to a member function getDumper() on a non-object in D:\www\includes\simpletest\test_case.php on line 305
+[27-Jan-2008 17:52:10] PHP Fatal error:  Call to a member function getDumper() on a non-object in D:\www\includes\simpletest\test_case.php on line 305
+[27-Jan-2008 17:54:16] PHP Fatal error:  Call to a member function getDumper() on a non-object in D:\www\includes\simpletest\test_case.php on line 305
+[27-Jan-2008 17:54:47] PHP Fatal error:  Call to a member function getDumper() on a non-object in D:\www\includes\simpletest\test_case.php on line 305
+[27-Jan-2008 17:55:06] PHP Fatal error:  Call to a member function getDumper() on a non-object in D:\www\includes\simpletest\test_case.php on line 305
+[27-Jan-2008 17:55:22] PHP Fatal error:  Call to a member function getDumper() on a non-object in D:\www\includes\simpletest\test_case.php on line 305
+[27-Jan-2008 17:56:02] PHP Fatal error:  Call to undefined method NovemberInjector::setServiceDirectory() in D:\www\includes\injector\testing\testcases\TestInjector.php on line 24
+[27-Jan-2008 17:56:06] PHP Fatal error:  Call to undefined method NovemberInjector::setServiceDirectory() in D:\www\includes\injector\testing\testcases\TestInjector.php on line 23
+[27-Jan-2008 17:56:25] PHP Fatal error:  Call to undefined method NovemberInjector::setServiceDirectory() in D:\www\includes\injector\testing\testcases\TestInjector.php on line 23
+[27-Jan-2008 17:56:39] PHP Fatal error:  Call to undefined method TestInjector::assertEquals() in D:\www\includes\injector\testing\testcases\TestInjector.php on line 38
+[27-Jan-2008 17:58:25] E_NOTICE: Undefined index:  TestValue in D:\www\includes\injector\NovemberInjector.php on line 131
+[27-Jan-2008 18:05:27] E_NOTICE: Undefined index:  TestValue in D:\www\includes\injector\NovemberInjector.php on line 131
+[27-Jan-2008 18:05:31] E_NOTICE: Undefined index:  TestValue in D:\www\includes\injector\NovemberInjector.php on line 131
+[27-Jan-2008 18:06:23] PHP Fatal error:  Cannot redeclare class SampleService in D:\www\includes\injector\testing\services\SampleService.php on line 4
+[27-Jan-2008 18:07:03] E_WARNING: DirectoryIterator::__construct(D:\www\includes\injector\testing/basicservices): failed to open dir: No such file or directory in D:\www\includes\injector\NovemberInjector.php on line 60
+[27-Jan-2008 18:07:03] E_NOTICE: Undefined index:  SampleService in D:\www\includes\injector\NovemberInjector.php on line 130
+[27-Jan-2008 18:07:03] E_NOTICE: Undefined index:  TestValue in D:\www\includes\injector\NovemberInjector.php on line 130
+[27-Jan-2008 18:07:20] E_WARNING: DirectoryIterator::__construct(D:\www\includes\injector\testing/basicservices): failed to open dir: No such file or directory in D:\www\includes\injector\NovemberInjector.php on line 60
+[27-Jan-2008 18:17:36] PHP Parse error:  syntax error, unexpected ')' in D:\www\includes\injector\testing\testcases\TestInjector.php on line 36

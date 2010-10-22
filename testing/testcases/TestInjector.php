@@ -96,6 +96,13 @@ class TestInjector extends UnitTestCase
         $injector->inject($myObject);
 
         $this->assertEqual(get_class($myObject->s()), 'SampleService');
+
+		// and again because it goes down a different code path when setting things
+		// based on the inject map
+		$myObject = new OtherTestObject();
+        $injector->inject($myObject);
+
+        $this->assertEqual(get_class($myObject->s()), 'SampleService');
 	}
 }
 

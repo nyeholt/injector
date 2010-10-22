@@ -31,7 +31,7 @@ require_once('simpletest/mock_objects.php');
 
 function __autoload($class)
 {
-    Zend_Loader::loadClass($class);
+    
 }
 
 if (!function_exists('ifset')) {

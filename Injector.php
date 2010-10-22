@@ -87,15 +87,18 @@ class Injector {
     /**
      * Create a new injector. 
      *
-     * @param string|array $serviceDirectory
-	 *				The location to automatically load services from. Can be a string or an array for multiple
-	 *				locations. Any class in these directories will be assumed to be a managed class
+     * @param array $config
+	 *				Service configuration
      */
-    public function __construct() {
+    public function __construct($config = null) {
         $this->injectMap = array();
         $this->serviceCache = array();
         $this->autoProperties = array();
 		$this->specs = array();
+
+		if ($config) {
+			$this->load($config);
+		}
     }
     
     /**
@@ -141,9 +144,9 @@ class Injector {
 				$filename = basename($file);
 				$name = substr($filename, 0, strrpos($filename, '.'));
 			}
-			
-			$id = ifset($bean, 'id', $name);
+
 			$class = ifset($bean, 'class', $name);
+			$id = ifset($bean, 'id', $class);
 
 			if (!class_exists($class, false)) {
 				throw new Exception("Failed to load '$class' from $file");
@@ -155,9 +158,9 @@ class Injector {
 			foreach ($props as $key => $value) {
 				$val = $this->convertServiceProperty($value);
 				if (method_exists($service, 'set'.$key)) {
-					$service->{'set'.$key}($value);
+					$service->{'set'.$key}($val);
 				} else {
-					$service->$key = $value;
+					$service->$key = $val;
 				}
 			}
 
@@ -182,8 +185,8 @@ class Injector {
 	protected function convertServiceProperty($value) {
 		if (is_array($value)) {
 			$newVal = array();
-			foreach ($value as $v) {
-				$newVal[] = $this->convertServiceProperty($value);
+			foreach ($value as $k => $v) {
+				$newVal[$k] = $this->convertServiceProperty($v);
 			}
 			return $newVal;
 		}

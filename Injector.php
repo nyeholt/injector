@@ -134,18 +134,16 @@ class Injector {
 
 		foreach ($config as $bean) {
 			$file = ifset($bean, 'src');
+			$name = null;
 
-			if (!file_exists($file)) {
-				throw new Exception("Configured service $file does not exist");
+			if (file_exists($file)) {
+				include_once $file;
+				$filename = basename($file);
+				$name = substr($filename, 0, strrpos($filename, '.'));
 			}
-
-			$filename = basename($file);
-			$name = substr($filename, 0, strrpos($filename, '.'));
 			
 			$id = ifset($bean, 'id', $name);
 			$class = ifset($bean, 'class', $name);
-
-			include_once $file;
 
 			if (!class_exists($class, false)) {
 				throw new Exception("Failed to load '$class' from $file");
@@ -215,20 +213,46 @@ class Injector {
 	        $properties = $robj->getProperties();
 	
 	        foreach ($properties as $propertyObject) {
-	            $origName = $propertyObject->getName();
-	            $name = ucfirst($origName);
-	            if (isset($this->serviceCache[$name])) {
-	                // Pull the name out of the registry
-                    $value = $this->serviceCache[$name];
-	                $propertyObject->setValue($object, $value);
-	                $mapping[$origName] = $name;
-	            }
+				/* @var $propertyObject ReflectionProperty */
+				if ($propertyObject->isPublic()) {
+					$origName = $propertyObject->getName();
+					$name = ucfirst($origName);
+					if (isset($this->serviceCache[$name])) {
+						// Pull the name out of the registry
+						$value = $this->serviceCache[$name];
+						$propertyObject->setValue($object, $value);
+						$mapping[$origName] = array('name' => $name, 'type' => 'property');
+					}
+				}
 	        }
+
+			$methods = $robj->getMethods(ReflectionMethod::IS_PUBLIC);
+
+			foreach ($methods as $methodObj) {
+				/* @var $methodObj ReflectionMethod */
+				$methName = $methodObj->getName();
+				if (strpos($methName, 'set') === 0) {
+					$pname = substr($methName, 3);
+					if (isset($this->serviceCache[$pname])) {
+						// Pull the name out of the registry
+						$value = $this->serviceCache[$pname];
+						$methodObj->invoke($object, $value);
+						$mapping[$pname] = array('name' => $pname, 'type' => 'method');
+					}
+				}
+			}
+
 	        $this->injectMap[get_class($object)] = $mapping;
         } else {
-            foreach ($mapping as $prop => $serviceName) {
-				$value = $this->serviceCache[$serviceName];
-                $object->$prop = $value;
+            foreach ($mapping as $prop => $spec) {
+				if ($spec['type'] == 'property') {
+					$value = $this->serviceCache[$spec['name']];
+					$object->$prop = $value;
+				} else {
+					$method = 'set'.$prop;
+					$value = $this->serviceCache[$spec['name']];
+					$object->$method($value);
+				}
             }
         }
         

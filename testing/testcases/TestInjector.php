@@ -84,8 +84,33 @@ class TestInjector extends UnitTestCase
         $this->assertEqual(get_class($myObject->sampleService), 'SampleService');
         $this->assertEqual($myObject->auto, 'somevalue');
     }
+
+	public function testInjectUsingSetter() {
+		$injector = new Injector();
+        $config = array(array('src' => TEST_SERVICES.'/SampleService.php',));
+
+        $injector->load($config);
+        $this->assertTrue($injector->hasService('SampleService'));
+
+        $myObject = new OtherTestObject();
+        $injector->inject($myObject);
+
+        $this->assertEqual(get_class($myObject->s()), 'SampleService');
+	}
 }
 
 class TestObject {
     public $sampleService;
+}
+
+class OtherTestObject {
+    private $sampleService;
+
+	public function setSampleService($s) {
+		$this->sampleService = $s;
+	}
+
+	public function s() {
+		return $this->sampleService;
+	}
 }

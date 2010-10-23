@@ -13,15 +13,6 @@
  * @license    New BSD License
  */
 
-if (!function_exists('ifset')) {
-	function ifset(&$array, $key, $default = null) {
-	    if (!is_array($array) && !($array instanceof ArrayAccess)) {
-			throw new Exception("Must use an array!");
-		}
-	    return isset($array[$key]) ? $array[$key] : $default;
-	}
-}
-
 /**
  * A simple injection manager that manages loading beans and injecting
  * dependencies between them. It borrows quite a lot from ideas taken from
@@ -133,7 +124,7 @@ class Injector {
 				$spec = array('class' => $spec);
 			}
 			
-			$file = ifset($spec, 'src');
+			$file = isset($spec['src']) ? $spec['src'] : null; 
 			$name = null;
 
 			if (file_exists($file)) {
@@ -142,10 +133,11 @@ class Injector {
 				$name = substr($filename, 0, strrpos($filename, '.'));
 			}
 
-			$class = ifset($spec, 'class', $name);
+			$class = isset($spec['class']) ? $spec['class'] : $name;
 			// make sure the class is set...
 			$spec['class'] = $class;
-			$id = ifset($spec, 'id', $class);
+
+			$id = isset($spec['id']) ? $spec['id'] : $class; 
 			
 			// make sure to set the id for later when instantiating
 			// to ensure we get cached
@@ -219,11 +211,11 @@ class Injector {
 		}
 		$class = $spec['class'];
 		$object = new $class;
-		$props = ifset($spec, 'properties', array());
+		$props = isset($spec['properties']) ? $spec['properties'] : array(); 
 
 		// figure out if we have an id or not
 		if (!$id) {
-			$id = ifset($spec, 'id');
+			$id = isset($spec['id']) ? $spec['id'] : null;
 		}
 
 		foreach ($props as $key => $value) {
@@ -235,7 +227,7 @@ class Injector {
 			}
 		}
 
-		$type = ifset($spec, 'type');
+		$type = isset($spec['type']) ? $spec['type'] : null; 
 		if ($id && (!$type || $type != 'prototype')) {
 			// this ABSOLUTELY must be set before the object is injected.
 			// This prevents circular reference errors down the line
@@ -254,7 +246,8 @@ class Injector {
      * @param Injectable $object
      */
     public function inject($object) {
-        $mapping = ifset($this->injectMap, get_class($object), null);
+		$objtype = get_class($object);
+        $mapping = isset($this->injectMap[$objtype]) ? $this->injectMap[$objtype] : null;
         
         if (!$mapping) {
 			$mapping = new ArrayObject();
@@ -356,7 +349,7 @@ class Injector {
 			// check to see what the type of bean is. If it's a prototype,
 			// we don't want to return the singleton version of it.
 			$spec = $this->specs[$name];
-			$type = ifset($spec, 'type');
+			$type = isset($spec['type']) ? $spect['type'] : null;
 
 			if ($type && $type == 'prototype') {
 				return $this->instantiate($spec, $name);

@@ -39,7 +39,7 @@ class TestInjector extends UnitTestCase
         // just a replacement of the SampleService
 	    $this->assertTrue($injector->hasService('AnotherService'));
 
-		$item = $injector->getService('AnotherService');
+		$item = $injector->get('AnotherService');
 
 		$this->assertEqual('Value', $item->config_property);
     }
@@ -57,7 +57,6 @@ class TestInjector extends UnitTestCase
         $injector->inject($myObject);
 
         $this->assertEqual(get_class($myObject->sampleService), 'SampleService');
-
 		
 		$config = array(array('src' => TEST_SERVICES.'/AnotherService.php', 'id' => 'SampleService'));
 		// load
@@ -66,7 +65,7 @@ class TestInjector extends UnitTestCase
 		$injector->inject($myObject);
         $this->assertEqual('AnotherService', get_class($myObject->sampleService));
 	}
-    
+
     public function testAutoSetInjector() {
         $injector = new Injector();
         $injector->addAutoProperty('auto', 'somevalue');
@@ -104,6 +103,50 @@ class TestInjector extends UnitTestCase
 
         $this->assertEqual(get_class($myObject->s()), 'SampleService');
 	}
+
+	public function testCircularReference() {
+		$services = array ('CircularOne', 'CircularTwo');
+        $injector = new Injector($services);
+
+		$obj = $injector->instantiate('NeedsBothCirculars');
+
+		$this->assertTrue($obj->circularOne instanceof CircularOne);
+		$this->assertTrue($obj->circularTwo instanceof CircularTwo);
+	}
+
+	public function testPrototypeObjects() {
+		$services = array('CircularOne', 'CircularTwo', array('class' => 'NeedsBothCirculars', 'type' => 'prototype'));
+		$injector = new Injector($services);
+
+		$obj1 = $injector->get('NeedsBothCirculars');
+		$obj2 = $injector->get('NeedsBothCirculars');
+
+		// if this was the same object, then $obj1->var would now be two
+		$obj1->var = 'one';
+		$obj2->var = 'two';
+
+		$this->assertTrue($obj1->circularOne instanceof CircularOne);
+		$this->assertTrue($obj1->circularTwo instanceof CircularTwo);
+
+		$this->assertEqual($obj1->circularOne, $obj2->circularOne);
+		$this->assertNotEqual($obj1, $obj2);
+	}
+
+	public function testSimpleInstantiation() {
+		$services = array('CircularOne', 'CircularTwo');
+		$injector = new Injector($services);
+
+		// similar to the above, but explicitly instantiating this object here
+		$obj1 = $injector->instantiate('NeedsBothCirculars');
+		$obj2 = $injector->instantiate('NeedsBothCirculars');
+
+		// if this was the same object, then $obj1->var would now be two
+		$obj1->var = 'one';
+		$obj2->var = 'two';
+
+		$this->assertEqual($obj1->circularOne, $obj2->circularOne);
+		$this->assertNotEqual($obj1, $obj2);
+	}
 }
 
 class TestObject {
@@ -120,4 +163,19 @@ class OtherTestObject {
 	public function s() {
 		return $this->sampleService;
 	}
+}
+
+class CircularOne {
+	public $circularTwo;
+}
+
+class CircularTwo {
+	public $circularOne;
+}
+
+class NeedsBothCirculars {
+	public $circularOne;
+	public $circularTwo;
+
+	public $var;
 }

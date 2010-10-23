@@ -9,14 +9,14 @@ class TestAopProxy extends UnitTestCase {
 	public function testProxyClass() {
 
 		$config = array(
-			array('class' => 'TestServiceForProxy', 'id' => 'TestService'),
+			array('class' => 'TestServiceForProxy', 'id' => 'TestServiceForProxy'),
 			array('class' => 'TestAspectBean', 'id' => 'PreCallTest'),
 			array('class' => 'TestAspectBean', 'id' => 'PostCallTest'),
 			array(
 				'src' => dirname(dirname(dirname(__FILE__))).'/services/AopProxyService.php',
 				'id' => 'TestService',
 				'properties' => array(
-					'proxied' => '#$TestService',
+					'proxied' => '#$TestServiceForProxy',
 					'beforeCall' => array(
 						'calculate' => '#$PreCallTest',
 					),
@@ -29,15 +29,15 @@ class TestAopProxy extends UnitTestCase {
 
 		$injector = new Injector($config);
 
-		$test = $injector->getService('TestService');
+		$test = $injector->get('TestService');
 
 		$this->assertEqual('AopProxyService', get_class($test));
 		$this->assertEqual(10, $test->calculate(5));
 
-		$aspect1 = $injector->getService('PreCallTest');
+		$aspect1 = $injector->get('PreCallTest');
 		$this->assertEqual(5, $aspect1->data['calculatepre']);
 
-		$aspect2 = $injector->getService('PostCallTest');
+		$aspect2 = $injector->get('PostCallTest');
 		$this->assertEqual(10, $aspect2->data['calculatepost']);
 
 		$this->assertNotEqual($aspect1, $aspect2);

@@ -39,6 +39,8 @@ if (!function_exists('ifset')) {
  *			'id' => 'BeanId',						// the name to be used if diff from the filename
  *			'class' => 'ClassName',					// the name of the PHP class
  *			'src' => '/path/to/file'				// the location of the class
+ *			'type' => 'singleton|prototype'			// if you want prototype object generation, set it as the type
+ *													// By default, singleton is assumed
  *			'properties' => array(
  *				'name' => 'value'					// scalar value
  *				'name' => '#$BeanId',				// a reference to another bean
@@ -102,15 +104,6 @@ class Injector {
     }
     
     /**
-     * Adds a directory to load services from
-     * @param string $dir
-	 *				The directory to load services from
-     */
-    public function addServiceDirectory($dir) {
-        $this->serviceDirectories[] = $dir;
-    }
-    
-    /**
      * Add an object that should be automatically set on managed objects
 	 *
 	 * This allows you to specify, for example, that EVERY managed object
@@ -135,8 +128,12 @@ class Injector {
     public function load($config = array()) {
         $services = array();
 
-		foreach ($config as $bean) {
-			$file = ifset($bean, 'src');
+		foreach ($config as $spec) {
+			if (is_string($spec)) {
+				$spec = array('class' => $spec);
+			}
+			
+			$file = ifset($spec, 'src');
 			$name = null;
 
 			if (file_exists($file)) {
@@ -145,33 +142,28 @@ class Injector {
 				$name = substr($filename, 0, strrpos($filename, '.'));
 			}
 
-			$class = ifset($bean, 'class', $name);
-			$id = ifset($bean, 'id', $class);
+			$class = ifset($spec, 'class', $name);
+			// make sure the class is set...
+			$spec['class'] = $class;
+			$id = ifset($spec, 'id', $class);
+			
+			// make sure to set the id for later when instantiating
+			// to ensure we get cached
+			$spec['id'] = $id;
 
 			if (!class_exists($class, false)) {
 				throw new Exception("Failed to load '$class' from $file");
 			}
 
-			$service = new $class;
-			$props = ifset($bean, 'properties', array());
+			// store the specs for now - we lazy load on demand later on. 
+			$this->specs[$id] = $spec;
 
-			foreach ($props as $key => $value) {
-				$val = $this->convertServiceProperty($value);
-				if (method_exists($service, 'set'.$key)) {
-					$service->{'set'.$key}($val);
-				} else {
-					$service->$key = $val;
-				}
+			// EXCEPT when there's already an existing instance at this id.
+			// if so, we need to instantiate and replace immediately
+			if (isset($this->serviceCache[$id])) {
+				$this->instantiate($spec, $id);
 			}
-
-			$this->specs[$id] = $bean;
-			$this->serviceCache[$id] = $service;
 		}
-
-        // so now match up any dependencies and inject away
-        foreach ($this->serviceCache as $service) {
-            $this->inject($service);
-        }
 
 		return $this;
     }
@@ -193,12 +185,67 @@ class Injector {
 		
 		if (strpos($value, '#$') === 0) {
 			$id = substr($value, 2);
-			if (!isset($this->serviceCache[$id])) {
-				throw new Exception("Undefined service $id for property");
+			if (!$this->hasService($id)) {
+				throw new Exception("Undefined service $id for property when trying to resolve property");
 			}
-			return $this->serviceCache[$id];
+			return $this->get($id);
 		}
 		return $value;
+	}
+
+	/**
+	 * Instantiate a managed object
+	 *
+	 * Given a specification of the form
+	 *
+	 * array(
+	 *		'class' => 'ClassName',
+	 *		'properties' => array('property' => 'scalar', 'other' => '#$BeanRef')
+	 *		'id' => 'ServiceId',
+	 *		'type' => 'singleton|prototype'
+	 * )
+	 *
+	 * will create a new object, store it in the service registry, and
+	 * set any relevant properties
+	 *
+	 * Optionally, you can pass a
+	 *
+	 * @param array $spec
+	 *				The specification of the class to instantiate
+	 */
+	public function instantiate($spec, $id=null) {
+		if (is_string($spec)) {
+			$spec = array('class' => $spec);
+		}
+		$class = $spec['class'];
+		$object = new $class;
+		$props = ifset($spec, 'properties', array());
+
+		// figure out if we have an id or not
+		if (!$id) {
+			$id = ifset($spec, 'id');
+		}
+
+		foreach ($props as $key => $value) {
+			$val = $this->convertServiceProperty($value);
+			if (method_exists($object, 'set'.$key)) {
+				$object->{'set'.$key}($val);
+			} else {
+				$object->$key = $val;
+			}
+		}
+
+		$type = ifset($spec, 'type');
+		if ($id && (!$type || $type != 'prototype')) {
+			// this ABSOLUTELY must be set before the object is injected.
+			// This prevents circular reference errors down the line
+			$this->serviceCache[$id] = $object;
+		}
+
+		// now inject safely
+		$this->inject($object);
+
+		return $object;
 	}
     
     /**
@@ -207,7 +254,6 @@ class Injector {
      * @param Injectable $object
      */
     public function inject($object) {
-        
         $mapping = ifset($this->injectMap, get_class($object), null);
         
         if (!$mapping) {
@@ -220,9 +266,9 @@ class Injector {
 				if ($propertyObject->isPublic()) {
 					$origName = $propertyObject->getName();
 					$name = ucfirst($origName);
-					if (isset($this->serviceCache[$name])) {
+					if ($this->hasService($name)) {
 						// Pull the name out of the registry
-						$value = $this->serviceCache[$name];
+						$value = $this->get($name);
 						$propertyObject->setValue($object, $value);
 						$mapping[$origName] = array('name' => $name, 'type' => 'property');
 					}
@@ -236,9 +282,9 @@ class Injector {
 				$methName = $methodObj->getName();
 				if (strpos($methName, 'set') === 0) {
 					$pname = substr($methName, 3);
-					if (isset($this->serviceCache[$pname])) {
+					if ($this->hasService($pname)) {
 						// Pull the name out of the registry
-						$value = $this->serviceCache[$pname];
+						$value = $this->get($pname);
 						$methodObj->invoke($object, $value);
 						$mapping[$pname] = array('name' => $pname, 'type' => 'method');
 					}
@@ -249,11 +295,11 @@ class Injector {
         } else {
             foreach ($mapping as $prop => $spec) {
 				if ($spec['type'] == 'property') {
-					$value = $this->serviceCache[$spec['name']];
+					$value = $this->get($spec['name']);
 					$object->$prop = $value;
 				} else {
 					$method = 'set'.$prop;
-					$value = $this->serviceCache[$spec['name']];
+					$value = $this->get($spec['name']);
 					$object->$method($value);
 				}
             }
@@ -270,12 +316,12 @@ class Injector {
             $object->injected();
         }
     }
-    
+
     /**
      * Does the given service exist?
      */
     public function hasService($name) {
-        return isset($this->serviceCache[$name]);
+        return isset($this->specs[$name]);
     }
     
     /**
@@ -301,13 +347,27 @@ class Injector {
     }
     
     /**
-     * Get a named service
+     * Get a named managed object
+	 * 
      * @param $name the name of the service to retrieve
      */
-    public function getService($name) {
+    public function get($name) {
         if ($this->hasService($name)) {
-            return $this->serviceCache[$name];
+			// check to see what the type of bean is. If it's a prototype,
+			// we don't want to return the singleton version of it.
+			$spec = $this->specs[$name];
+			$type = ifset($spec, 'type');
+
+			if ($type && $type == 'prototype') {
+				return $this->instantiate($spec, $name);
+			} else {
+				if (!isset($this->serviceCache[$name])) {
+					$this->instantiate($spec, $name);
+				}
+				return $this->serviceCache[$name];
+			}
         }
+		
         throw new Exception("Service $name is not defined");
     }
 }

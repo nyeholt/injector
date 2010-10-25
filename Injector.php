@@ -76,6 +76,13 @@ class Injector {
      * service
      */
     private $autoProperties;
+
+	/**
+	 * A singleton if you want to use it that way
+	 *
+	 * @var Injector
+	 */
+	private static $instance;
     
     /**
      * Create a new injector. 
@@ -93,6 +100,18 @@ class Injector {
 			$this->load($config);
 		}
     }
+
+	/**
+	 * If a user wants to use the injector as a static reference
+	 *
+	 * @param array $config
+	 */
+	public static function inst($config=null) {
+		if (!self::$instance) {
+			self::$instance = new Injector($config);
+		}
+		return self::$instance;
+	}
     
     /**
      * Add an object that should be automatically set on managed objects
@@ -143,7 +162,7 @@ class Injector {
 			// to ensure we get cached
 			$spec['id'] = $id;
 
-			if (!class_exists($class, false)) {
+			if (!class_exists($class)) {
 				throw new Exception("Failed to load '$class' from $file");
 			}
 

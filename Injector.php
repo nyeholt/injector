@@ -368,7 +368,7 @@ class Injector {
 			// check to see what the type of bean is. If it's a prototype,
 			// we don't want to return the singleton version of it.
 			$spec = $this->specs[$name];
-			$type = isset($spec['type']) ? $spect['type'] : null;
+			$type = isset($spec['type']) ? $spec['type'] : null;
 
 			if ($type && $type == 'prototype') {
 				return $this->instantiate($spec, $name);

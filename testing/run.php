@@ -37,7 +37,7 @@ function __autoload($class)
 if (!function_exists('ifset')) {
 	function ifset(&$array, $key, $default = null)
 	{
-	    if (!is_array($array) && !($array instanceof ArrayAccess)) throw new Exception("Must use an array!");
+	    if (!is_array($array) && !($array instanceof ArrayAccess)) throw new Exception("Must use an array, not ".$array);
 	    return isset($array[$key]) ? $array[$key] : $default;
 	}
 }
@@ -45,7 +45,7 @@ if (!function_exists('ifset')) {
 $groups = array();
 $test_dir = dirname(__FILE__).DIRECTORY_SEPARATOR.'testcases';
 
-$testcase = ifset($_SERVER['argv'], 1);
+$testcase = ifset($_SERVER, 'argv');
 
 if (!$testcase) {
     $testcase = ifset($_GET, 'testcase');
@@ -61,7 +61,7 @@ $reporter = php_sapi_name() == 'cli' ? 'TextReporter' : 'HtmlReporter';
 foreach ($groups as $testGroup) {
     $rp = new $reporter();
     /* @var $testGroup GroupTest */
-	$testGroup->run($rp);
+    $testGroup->run($rp);
 }
 
 /**

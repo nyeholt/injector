@@ -147,6 +147,39 @@ class TestInjector extends UnitTestCase
 		$this->assertEqual($obj1->circularOne, $obj2->circularOne);
 		$this->assertNotEqual($obj1, $obj2);
 	}
+	
+	public function testOverridePriority() {
+		$injector = new Injector();
+
+        $config = array(
+			array(
+				'src' => TEST_SERVICES.'/SampleService.php',
+				'priority' => 10,
+			)
+		);
+
+		// load
+        $injector->load($config);
+
+		// inject
+		$myObject = new TestObject();
+        $injector->inject($myObject);
+
+        $this->assertEqual(get_class($myObject->sampleService), 'SampleService');
+		
+		$config = array(
+			array(
+				'src' => TEST_SERVICES.'/AnotherService.php', 
+				'id' => 'SampleService',
+				'priority' => 1,
+			)
+		);
+		// load
+        $injector->load($config);
+
+		$injector->inject($myObject);
+        $this->assertEqual('SampleService', get_class($myObject->sampleService));
+	}
 }
 
 class TestObject {

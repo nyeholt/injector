@@ -9,8 +9,8 @@
  * to marcus@mikenovember.com so I can send you a copy immediately.
  *
  * @copyright  Copyright (c) 2006-2007 Marcus Nyeholt (http://mikenovember.com)
- * @version    $Id$
- * @license    New BSD License
+ * @version	$Id$
+ * @license	New BSD License
  */
 
 /**
@@ -27,12 +27,14 @@
  *
  * array(
  *		array(
- *			'id' => 'BeanId',						// the name to be used if diff from the filename
- *			'class' => 'ClassName',					// the name of the PHP class
- *			'src' => '/path/to/file'				// the location of the class
- *			'type' => 'singleton|prototype'			// if you want prototype object generation, set it as the type
+ *			'id'			=> 'BeanId',						// the name to be used if diff from the filename
+ *			'piority'		=> 1,							// priority. If another bean is defined with the same ID, 
+ *															// but has a lower priority, it is NOT overridden
+ *			'class'			=> 'ClassName',					// the name of the PHP class
+ *			'src'			=> '/path/to/file'				// the location of the class
+ *			'type'			=> 'singleton|prototype'			// if you want prototype object generation, set it as the type
  *													// By default, singleton is assumed
- *			'properties' => array(
+ *			'properties'	=> array(
  *				'name' => 'value'					// scalar value
  *				'name' => '#$BeanId',				// a reference to another bean
  *				'name' => array(
@@ -55,14 +57,14 @@ class Injector {
 	 *
 	 * @var array
 	 */
-    private $serviceCache;
+	private $serviceCache;
 
 	/**
 	 * Cache of items that need to be mapped for each service that gets injected
 	 *
 	 * @var array
 	 */
-    private $injectMap;
+	private $injectMap;
 
 	/**
 	 * A store of all the service configurations that have been defined.
@@ -70,12 +72,12 @@ class Injector {
 	 * @var array
 	 */
 	private $specs;
-    
-    /**
-     * A map of all the properties that should be automagically set on a 
-     * service
-     */
-    private $autoProperties;
+	
+	/**
+	 * A map of all the properties that should be automagically set on a 
+	 * service
+	 */
+	private $autoProperties;
 
 	/**
 	 * A singleton if you want to use it that way
@@ -83,23 +85,23 @@ class Injector {
 	 * @var Injector
 	 */
 	private static $instance;
-    
-    /**
-     * Create a new injector. 
-     *
-     * @param array $config
+	
+	/**
+	 * Create a new injector. 
+	 *
+	 * @param array $config
 	 *				Service configuration
-     */
-    public function __construct($config = null) {
-        $this->injectMap = array();
-        $this->serviceCache = array();
-        $this->autoProperties = array();
+	 */
+	public function __construct($config = null) {
+		$this->injectMap = array();
+		$this->serviceCache = array();
+		$this->autoProperties = array();
 		$this->specs = array();
 
 		if ($config) {
 			$this->load($config);
 		}
-    }
+	}
 
 	/**
 	 * If a user wants to use the injector as a static reference
@@ -112,42 +114,41 @@ class Injector {
 		}
 		return self::$instance;
 	}
-    
-    /**
-     * Add an object that should be automatically set on managed objects
+	
+	/**
+	 * Add an object that should be automatically set on managed objects
 	 *
 	 * This allows you to specify, for example, that EVERY managed object
 	 * will be automatically inject with a log object by the following
 	 *
 	 * $injector->addAutoProperty('log', new Logger());
 	 *
-     * @param string $property
+	 * @param string $property
 	 *				the name of the property
-     * @param object $object
+	 * @param object $object
 	 *				the object to be set
-     */
-    public function addAutoProperty($property, $object) {
-        $this->autoProperties[$property] = $object;
-    }
+	 */
+	public function addAutoProperty($property, $object) {
+		$this->autoProperties[$property] = $object;
+	}
 
-    /**
-     * Load services using the passed in configuration for those services
-     *
-     * @param array $config
-     */
-    public function load($config = array()) {
-        $services = array();
+	/**
+	 * Load services using the passed in configuration for those services
+	 *
+	 * @param array $config
+	 */
+	public function load($config = array()) {
+		$services = array();
 
 		foreach ($config as $spec) {
 			if (is_string($spec)) {
 				$spec = array('class' => $spec);
 			}
-			
+
 			$file = isset($spec['src']) ? $spec['src'] : null; 
 			$name = null;
 
 			if (file_exists($file)) {
-				include_once $file;
 				$filename = basename($file);
 				$name = substr($filename, 0, strrpos($filename, '.'));
 			}
@@ -158,6 +159,21 @@ class Injector {
 
 			$id = isset($spec['id']) ? $spec['id'] : $class; 
 			
+			$priority = isset($spec['priority']) ? $spec['priority'] : 1;
+			
+			// see if we already have this defined. If so, check 
+			// priority weighting
+			if (isset($this->specs[$id]) && isset($this->specs[$id]['priority'])) {
+				if ($this->specs[$id]['priority'] > $priority) {
+					return;
+				}
+			}
+
+			// okay, actually include it now we know we're going to use it
+			if (file_exists($file)) {
+				require_once $file;
+			}
+
 			// make sure to set the id for later when instantiating
 			// to ensure we get cached
 			$spec['id'] = $id;
@@ -177,8 +193,7 @@ class Injector {
 		}
 
 		return $this;
-    }
-	
+	}
 
 	/**
 	 * Recursively convert a value into its proper representation
@@ -258,22 +273,22 @@ class Injector {
 
 		return $object;
 	}
-    
-    /**
-     * Inject $object with available objects from the service cache
-     *
-     * @param Injectable $object
-     */
-    public function inject($object) {
+
+	/**
+	 * Inject $object with available objects from the service cache
+	 *
+	 * @param Injectable $object
+	 */
+	public function inject($object) {
 		$objtype = get_class($object);
-        $mapping = isset($this->injectMap[$objtype]) ? $this->injectMap[$objtype] : null;
-        
-        if (!$mapping) {
+		$mapping = isset($this->injectMap[$objtype]) ? $this->injectMap[$objtype] : null;
+		
+		if (!$mapping) {
 			$mapping = new ArrayObject();
 			$robj = new ReflectionObject($object);
-	        $properties = $robj->getProperties();
+			$properties = $robj->getProperties();
 	
-	        foreach ($properties as $propertyObject) {
+			foreach ($properties as $propertyObject) {
 				/* @var $propertyObject ReflectionProperty */
 				if ($propertyObject->isPublic()) {
 					$origName = $propertyObject->getName();
@@ -285,7 +300,7 @@ class Injector {
 						$mapping[$origName] = array('name' => $name, 'type' => 'property');
 					}
 				}
-	        }
+			}
 
 			$methods = $robj->getMethods(ReflectionMethod::IS_PUBLIC);
 
@@ -303,9 +318,9 @@ class Injector {
 				}
 			}
 
-	        $this->injectMap[get_class($object)] = $mapping;
-        } else {
-            foreach ($mapping as $prop => $spec) {
+			$this->injectMap[get_class($object)] = $mapping;
+		} else {
+			foreach ($mapping as $prop => $spec) {
 				if ($spec['type'] == 'property') {
 					$value = $this->get($spec['name']);
 					$object->$prop = $value;
@@ -314,57 +329,57 @@ class Injector {
 					$value = $this->get($spec['name']);
 					$object->$method($value);
 				}
-            }
-        }
-        
-        foreach ($this->autoProperties as $property => $value) {
-            if (!isset($object->$property)) {
-                $object->$property = $value;
-            }
-        }
+			}
+		}
+		
+		foreach ($this->autoProperties as $property => $value) {
+			if (!isset($object->$property)) {
+				$object->$property = $value;
+			}
+		}
 
-        // Call the 'injected' method if it exists
-        if (method_exists($object, 'injected')) {
-            $object->injected();
-        }
-    }
+		// Call the 'injected' method if it exists
+		if (method_exists($object, 'injected')) {
+			$object->injected();
+		}
+	}
 
-    /**
-     * Does the given service exist?
-     */
-    public function hasService($name) {
-        return isset($this->specs[$name]);
-    }
-    
-    /**
-     * Register a service object with an optional name to register it as the
-     * service for
-     */
-    public function registerService($service, $replace=null) {
-        $registerAt = get_class($service);
-        if ($replace != null) {
-            $registerAt = $replace;
-        }
-        
-        $this->serviceCache[$registerAt] = $service;
-        $this->inject($service);
-    }
-    
-    /**
-     * Register a service with an explicit name
-     */
-    public function registerNamedService($name, $service) {
-        $this->serviceCache[$name] = $service;
-        $this->inject($service);
-    }
-    
-    /**
-     * Get a named managed object
+	/**
+	 * Does the given service exist?
+	 */
+	public function hasService($name) {
+		return isset($this->specs[$name]);
+	}
+
+	/**
+	 * Register a service object with an optional name to register it as the
+	 * service for
+	 */
+	public function registerService($service, $replace=null) {
+		$registerAt = get_class($service);
+		if ($replace != null) {
+			$registerAt = $replace;
+		}
+		
+		$this->serviceCache[$registerAt] = $service;
+		$this->inject($service);
+	}
+	
+	/**
+	 * Register a service with an explicit name
+	 */
+	public function registerNamedService($name, $service) {
+		$this->serviceCache[$name] = $service;
+		$this->inject($service);
+	}
+	
+	/**
+	 * Get a named managed object
 	 * 
-     * @param $name the name of the service to retrieve
-     */
-    public function get($name) {
-        if ($this->hasService($name)) {
+	 * @param $name the name of the service to retrieve
+	 */
+	public function get($name) {
+		if ($this->hasService($name)) {
 			// check to see what the type of bean is. If it's a prototype,
 			// we don't want to return the singleton version of it.
 			$spec = $this->specs[$name];
@@ -378,8 +393,8 @@ class Injector {
 				}
 				return $this->serviceCache[$name];
 			}
-        }
+		}
 		
-        throw new Exception("Service $name is not defined");
-    }
+		throw new Exception("Service $name is not defined");
+	}
 }

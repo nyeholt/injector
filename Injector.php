@@ -27,16 +27,21 @@
  *
  * array(
  *		array(
- *			'id'			=> 'BeanId',						// the name to be used if diff from the filename
+ *			'id'			=> 'BeanId',					// the name to be used if diff from the filename
  *			'piority'		=> 1,							// priority. If another bean is defined with the same ID, 
  *															// but has a lower priority, it is NOT overridden
  *			'class'			=> 'ClassName',					// the name of the PHP class
  *			'src'			=> '/path/to/file'				// the location of the class
- *			'type'			=> 'singleton|prototype'			// if you want prototype object generation, set it as the type
- *													// By default, singleton is assumed
+ *			'type'			=> 'singleton|prototype'		// if you want prototype object generation, set it as the type
+ *															// By default, singleton is assumed
+ *
+ *			'construct'		=> array(						// properties to set at construction
+ *				'scalar',									
+ *				'#$BeanId',
+ *			)
  *			'properties'	=> array(
- *				'name' => 'value'					// scalar value
- *				'name' => '#$BeanId',				// a reference to another bean
+ *				'name' => 'value'							// scalar value
+ *				'name' => '#$BeanId',						// a reference to another bean
  *				'name' => array(
  *					'scalar',
  *					'#$BeanId'
@@ -244,7 +249,14 @@ class Injector {
 			$spec = array('class' => $spec);
 		}
 		$class = $spec['class'];
-		$object = new $class;
+		
+		if (isset($spec['constructor']) && is_array($spec['constructor'])) {
+			$reflector = new ReflectionClass($class);
+			$object = $reflector->newInstanceArgs($this->convertServiceProperty($spec['constructor']));
+		} else {
+			$object = new $class;
+		}
+		
 		$props = isset($spec['properties']) ? $spec['properties'] : array(); 
 
 		// figure out if we have an id or not

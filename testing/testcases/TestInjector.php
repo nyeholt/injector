@@ -33,7 +33,6 @@ class TestInjector extends UnitTestCase
 		);
 
         $injector->load($services);
-		
         $this->assertTrue($injector->hasService('SampleService'));
         // We expect a false because the 'AnotherService' is actually
         // just a replacement of the SampleService
@@ -83,6 +82,39 @@ class TestInjector extends UnitTestCase
         $this->assertEqual(get_class($myObject->sampleService), 'SampleService');
         $this->assertEqual($myObject->auto, 'somevalue');
     }
+	
+	public function testInjectUsingConstructor() {
+		$injector = new Injector();
+        $config = array(array(
+			'src' => TEST_SERVICES.'/SampleService.php',
+			'constructor' => array(
+				'val1',
+				'val2',
+			)
+		));
+		
+		$injector->load($config);
+		$sample = $injector->get('SampleService');
+		$this->assertEqual($sample->constructorVarOne, 'val1');
+		$this->assertEqual($sample->constructorVarTwo, 'val2');
+		
+		$injector = new Injector();
+        $config = array(
+			'AnotherService',
+			array(
+				'src' => TEST_SERVICES.'/SampleService.php',
+				'constructor' => array(
+					'val1',
+					'#$AnotherService',
+				)
+			)
+		);
+		
+		$injector->load($config);
+		$sample = $injector->get('SampleService');
+		$this->assertEqual($sample->constructorVarOne, 'val1');
+		$this->assertEqual(get_class($sample->constructorVarTwo), 'AnotherService');
+	}
 
 	public function testInjectUsingSetter() {
 		$injector = new Injector();

@@ -16,17 +16,23 @@ class AopProxyService {
 
 	public function __call($method, $args) {
 		if (method_exists($this->proxied, $method)) {
+			$continue = true;
 			if (isset($this->beforeCall[$method])) {
-				$this->beforeCall[$method]->preCall($this->proxied, $method, $args);
+				$result = $this->beforeCall[$method]->preCall($this->proxied, $method, $args);
+				if ($result === false) {
+					$continue = false;
+				}
 			}
 
-            $result = call_user_func_array(array($this->proxied, $method), $args);
+			if ($continue) {
+				$result = call_user_func_array(array($this->proxied, $method), $args);
 			
-			if (isset($this->afterCall[$method])) {
-				$this->afterCall[$method]->postCall($this->proxied, $method, $args, $result);
-			}
+				if (isset($this->afterCall[$method])) {
+					$this->afterCall[$method]->postCall($this->proxied, $method, $args, $result);
+				}
 
-			return $result;
+				return $result;
+			}
         }
 	}
 }

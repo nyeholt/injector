@@ -106,6 +106,8 @@ class Injector {
 		if ($config) {
 			$this->load($config);
 		}
+		
+		self::$instance = $this;
 	}
 
 	/**
@@ -214,7 +216,7 @@ class Injector {
 			return $newVal;
 		}
 		
-		if (strpos($value, '#$') === 0) {
+		if (is_string($value) && strpos($value, '#$') === 0) {
 			$id = substr($value, 2);
 			if (!$this->hasService($id)) {
 				throw new Exception("Undefined service $id for property when trying to resolve property");
@@ -346,6 +348,7 @@ class Injector {
 		
 		foreach ($this->autoProperties as $property => $value) {
 			if (!isset($object->$property)) {
+				$value = $this->convertServiceProperty($value);
 				$object->$property = $value;
 			}
 		}

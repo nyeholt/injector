@@ -48,11 +48,11 @@ class TestAopProxy extends UnitTestCase {
 class TestAspectBean {
 	public $data = array();
 
-	public function preCall($proxied, $method, $args) {
+	public function beforeCall($proxied, $method, $args) {
 		$this->data[$method.'pre'] = $args[0];
 	}
 
-	public function postCall($proxied, $method, $args, $result) {
+	public function afterCall($proxied, $method, $args, $result) {
 		$this->data[$method.'post'] = $result;
 	}
 }

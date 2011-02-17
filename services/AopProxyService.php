@@ -18,7 +18,7 @@ class AopProxyService {
 		if (method_exists($this->proxied, $method)) {
 			$continue = true;
 			if (isset($this->beforeCall[$method])) {
-				$result = $this->beforeCall[$method]->preCall($this->proxied, $method, $args);
+				$result = $this->beforeCall[$method]->beforeCall($this->proxied, $method, $args);
 				if ($result === false) {
 					$continue = false;
 				}
@@ -28,7 +28,7 @@ class AopProxyService {
 				$result = call_user_func_array(array($this->proxied, $method), $args);
 			
 				if (isset($this->afterCall[$method])) {
-					$this->afterCall[$method]->postCall($this->proxied, $method, $args, $result);
+					$this->afterCall[$method]->afterCall($this->proxied, $method, $args, $result);
 				}
 
 				return $result;

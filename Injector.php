@@ -270,19 +270,26 @@ class Injector {
 			$object = new $class;
 		}
 		
+		// see if there's any injections declared in a static on the object
+		$props = isset($spec['properties']) ? $spec['properties'] : array();
+		if (isset($class::$injections)) {
+			foreach ($class::$injections as $key => $val) {
+				$props[$key] = $val;
+			}
+		}
+
 		// set any properties defined in the service specification
-		if (isset($spec['properties'])) {
-			foreach ($spec['properties'] as $key => $value) {
-				$val = $this->convertServiceProperty($value);
-				if (method_exists($object, 'set'.$key)) {
-					$object->{'set'.$key}($val);
-				} else {
-					$object->$key = $val;
-				}
+		foreach ($props as $key => $value) {
+			$val = $this->convertServiceProperty($value);
+			if (method_exists($object, 'set'.$key)) {
+				$object->{'set'.$key}($val);
+			} else {
+				$object->$key = $val;
 			}
 		}
 		
-		// figure out if we have a specific id set or not
+		// figure out if we have a specific id set or not. In some cases, we might be instantiating objects
+		// that we don't manage directly; we don't want to store these in the service cache below
 		if (!$id) {
 			$id = isset($spec['id']) ? $spec['id'] : null;
 		}

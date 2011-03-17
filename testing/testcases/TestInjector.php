@@ -238,7 +238,7 @@ class TestInjector extends UnitTestCase
 	 */
 	public function testRequirementsSettingOptions() {
 		$injector = new Injector();
-        $config = array(
+		$config = array(
 			'OriginalRequirementsBackend',
 			'NewRequirementsBackend',
 			'Requirements' =>	array(
@@ -248,7 +248,7 @@ class TestInjector extends UnitTestCase
 			)
 		);
 
-        $injector->load($config);
+		$injector->load($config);
 		
 		$requirements = $injector->get('Requirements');
 		$this->assertEqual('OriginalRequirementsBackend', get_class($requirements->backend));
@@ -265,7 +265,18 @@ class TestInjector extends UnitTestCase
 		// requirements should have been reinstantiated with the new bean setting
 		$requirements = $injector->get('Requirements');
 		$this->assertEqual('NewRequirementsBackend', get_class($requirements->backend));
-		
+	}
+	
+	public function testStaticInjections() {
+		$injector = new Injector();
+		$config = array(
+			'NewRequirementsBackend',
+		);
+
+		$injector->load($config);
+
+		$si = $injector->get('StaticInjections');
+		$this->assertEqual('NewRequirementsBackend', get_class($si->backend));
 	}
 }
 
@@ -319,4 +330,12 @@ class OriginalRequirementsBackend {
 
 class NewRequirementsBackend {
 	
+}
+
+class StaticInjections {
+	public $backend;
+	
+	static $injections = array(
+		'backend'	=> '#$NewRequirementsBackend'
+	);
 }

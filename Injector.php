@@ -147,7 +147,7 @@ class Injector {
 	public function load($config = array()) {
 		$services = array();
 
-		foreach ($config as $spec) {
+		foreach ($config as $specId => $spec) {
 			if (is_string($spec)) {
 				$spec = array('class' => $spec);
 			}
@@ -160,11 +160,18 @@ class Injector {
 				$name = substr($filename, 0, strrpos($filename, '.'));
 			}
 
+			// class is whatever's explicitly set, 
 			$class = isset($spec['class']) ? $spec['class'] : $name;
+			
+			// or the specid if nothing else available.
+			if (!$class && is_string($specId)) {
+				$class = $specId;
+			}
+			
 			// make sure the class is set...
 			$spec['class'] = $class;
 
-			$id = isset($spec['id']) ? $spec['id'] : $class; 
+			$id = is_string($specId) ? $specId : (isset($spec['id']) ? $spec['id'] : $class); 
 			
 			$priority = isset($spec['priority']) ? $spec['priority'] : 1;
 			
@@ -313,7 +320,7 @@ class Injector {
 	
 			foreach ($properties as $propertyObject) {
 				/* @var $propertyObject ReflectionProperty */
-				if ($propertyObject->isPublic()) {
+				if ($propertyObject->isPublic() && !$propertyObject->getValue($object)) {
 					$origName = $propertyObject->getName();
 					$name = ucfirst($origName);
 					if ($this->hasService($name)) {

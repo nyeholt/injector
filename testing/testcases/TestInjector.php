@@ -57,7 +57,8 @@ class TestInjector extends UnitTestCase
 
         $this->assertEqual(get_class($myObject->sampleService), 'SampleService');
 		
-		$config = array(array('src' => TEST_SERVICES.'/AnotherService.php', 'id' => 'SampleService'));
+		// also tests that ID can be the key in the array
+		$config = array('SampleService' => array('src' => TEST_SERVICES.'/AnotherService.php')); // , 'id' => 'SampleService'));
 		// load
         $injector->load($config);
 
@@ -230,6 +231,42 @@ class TestInjector extends UnitTestCase
 		$injector->inject($myObject);
         $this->assertEqual('SampleService', get_class($myObject->sampleService));
 	}
+	
+	
+	/**
+	 * Specific test method to illustrate various ways of setting a requirements backend
+	 */
+	public function testRequirementsSettingOptions() {
+		$injector = new Injector();
+        $config = array(
+			'OriginalRequirementsBackend',
+			'NewRequirementsBackend',
+			'Requirements' =>	array(
+				'constructor'	=> array(
+					'#$OriginalRequirementsBackend'
+				)
+			)
+		);
+
+        $injector->load($config);
+		
+		$requirements = $injector->get('Requirements');
+		$this->assertEqual('OriginalRequirementsBackend', get_class($requirements->backend));
+
+		// just overriding the definition here
+		$injector->load(array(
+			'Requirements' =>	array(
+				'constructor'	=> array(
+					'#$NewRequirementsBackend'
+				)
+			)
+		));
+		
+		// requirements should have been reinstantiated with the new bean setting
+		$requirements = $injector->get('Requirements');
+		$this->assertEqual('NewRequirementsBackend', get_class($requirements->backend));
+		
+	}
 }
 
 class TestObject {
@@ -261,4 +298,25 @@ class NeedsBothCirculars {
 	public $circularTwo;
 
 	public $var;
+}
+
+
+class Requirements {
+	public $backend;
+	
+	public function __construct($backend) {
+		$this->backend = $backend;
+	}
+	
+	public function setBackend($backend) {
+		$this->backend = $backend;
+	}
+}
+
+class OriginalRequirementsBackend {
+	
+}
+
+class NewRequirementsBackend {
+	
 }

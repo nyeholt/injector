@@ -241,17 +241,21 @@ class Injector {
 	 * will create a new object, store it in the service registry, and
 	 * set any relevant properties
 	 *
-	 * Optionally, you can pass a
+	 * Optionally, you can pass a class name directly for creation
+	 * 
+	 * To access this from the outside, you should call ->get('Name') to ensure
+	 * the appropriate checks are made on the specific type. 
 	 *
 	 * @param array $spec
 	 *				The specification of the class to instantiate
 	 */
-	public function instantiate($spec, $id=null) {
+	protected function instantiate($spec, $id=null) {
 		if (is_string($spec)) {
 			$spec = array('class' => $spec);
 		}
 		$class = $spec['class'];
 		
+		// create the object, using any constructor bindings
 		if (isset($spec['constructor']) && is_array($spec['constructor'])) {
 			$reflector = new ReflectionClass($class);
 			$object = $reflector->newInstanceArgs($this->convertServiceProperty($spec['constructor']));
@@ -259,22 +263,25 @@ class Injector {
 			$object = new $class;
 		}
 		
-		$props = isset($spec['properties']) ? $spec['properties'] : array(); 
-
-		// figure out if we have an id or not
+		// set any properties defined in the service specification
+		if (isset($spec['properties'])) {
+			foreach ($spec['properties'] as $key => $value) {
+				$val = $this->convertServiceProperty($value);
+				if (method_exists($object, 'set'.$key)) {
+					$object->{'set'.$key}($val);
+				} else {
+					$object->$key = $val;
+				}
+			}
+		}
+		
+		// figure out if we have a specific id set or not
 		if (!$id) {
 			$id = isset($spec['id']) ? $spec['id'] : null;
 		}
 
-		foreach ($props as $key => $value) {
-			$val = $this->convertServiceProperty($value);
-			if (method_exists($object, 'set'.$key)) {
-				$object->{'set'.$key}($val);
-			} else {
-				$object->$key = $val;
-			}
-		}
-
+		// now set the service in place if needbe. This is NOT done for prototype beans, as they're
+		// created anew each time
 		$type = isset($spec['type']) ? $spec['type'] : null; 
 		if ($id && (!$type || $type != 'prototype')) {
 			// this ABSOLUTELY must be set before the object is injected.
@@ -291,13 +298,15 @@ class Injector {
 	/**
 	 * Inject $object with available objects from the service cache
 	 *
-	 * @param Injectable $object
+	 * @param object $object
+	 *				The object to inject
 	 */
 	public function inject($object) {
 		$objtype = get_class($object);
 		$mapping = isset($this->injectMap[$objtype]) ? $this->injectMap[$objtype] : null;
 		
 		if (!$mapping) {
+			// This performs public variable based injection
 			$mapping = new ArrayObject();
 			$robj = new ReflectionObject($object);
 			$properties = $robj->getProperties();
@@ -316,6 +325,7 @@ class Injector {
 				}
 			}
 
+			// and this performs setter based injection
 			$methods = $robj->getMethods(ReflectionMethod::IS_PUBLIC);
 
 			foreach ($methods as $methodObj) {
@@ -332,6 +342,8 @@ class Injector {
 				}
 			}
 
+			// we store the information about what needs to be injected for objects of this
+			// type here
 			$this->injectMap[get_class($object)] = $mapping;
 		} else {
 			foreach ($mapping as $prop => $spec) {
@@ -410,6 +422,8 @@ class Injector {
 			}
 		}
 		
-		throw new Exception("Service $name is not defined");
+		// If no specific config for this object, we'll just return a new instance
+		// of the object, which means it'll get instantiated and injected appropriately
+		return $this->instantiate($name);
 	}
 }

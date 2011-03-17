@@ -135,12 +135,29 @@ class TestInjector extends UnitTestCase
 
         $this->assertEqual(get_class($myObject->s()), 'SampleService');
 	}
+	
+	// make sure we can just get any arbitrary object - it should be created for us
+	public function testInstantiateAnObjectViaGet() {
+		$injector = new Injector();
+        $config = array(array('src' => TEST_SERVICES.'/SampleService.php',));
+
+        $injector->load($config);
+        $this->assertTrue($injector->hasService('SampleService'));
+
+        $myObject = $injector->get('OtherTestObject');
+        $this->assertEqual(get_class($myObject->s()), 'SampleService');
+
+		// and again because it goes down a different code path when setting things
+		// based on the inject map
+		$myObject = $injector->get('OtherTestObject');
+        $this->assertEqual(get_class($myObject->s()), 'SampleService');
+	}
 
 	public function testCircularReference() {
 		$services = array ('CircularOne', 'CircularTwo');
         $injector = new Injector($services);
 
-		$obj = $injector->instantiate('NeedsBothCirculars');
+		$obj = $injector->get('NeedsBothCirculars');
 
 		$this->assertTrue($obj->circularOne instanceof CircularOne);
 		$this->assertTrue($obj->circularTwo instanceof CircularTwo);
@@ -163,14 +180,15 @@ class TestInjector extends UnitTestCase
 		$this->assertEqual($obj1->circularOne, $obj2->circularOne);
 		$this->assertNotEqual($obj1, $obj2);
 	}
+	
 
 	public function testSimpleInstantiation() {
 		$services = array('CircularOne', 'CircularTwo');
 		$injector = new Injector($services);
 
 		// similar to the above, but explicitly instantiating this object here
-		$obj1 = $injector->instantiate('NeedsBothCirculars');
-		$obj2 = $injector->instantiate('NeedsBothCirculars');
+		$obj1 = $injector->get('NeedsBothCirculars');
+		$obj2 = $injector->get('NeedsBothCirculars');
 
 		// if this was the same object, then $obj1->var would now be two
 		$obj1->var = 'one';

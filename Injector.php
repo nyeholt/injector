@@ -270,18 +270,6 @@ class Injector {
 			$object = new $class;
 		}
 		
-		// set any properties defined in the service specification
-		if (isset($spec['properties'])) {
-			foreach ($spec['properties'] as $key => $value) {
-				$val = $this->convertServiceProperty($value);
-				if (method_exists($object, 'set'.$key)) {
-					$object->{'set'.$key}($val);
-				} else {
-					$object->$key = $val;
-				}
-			}
-		}
-		
 		// figure out if we have a specific id set or not
 		if (!$id) {
 			$id = isset($spec['id']) ? $spec['id'] : null;
@@ -297,7 +285,7 @@ class Injector {
 		}
 
 		// now inject safely
-		$this->inject($object);
+		$this->inject($object, $id);
 
 		return $object;
 	}
@@ -307,14 +295,35 @@ class Injector {
 	 *
 	 * @param object $object
 	 *				The object to inject
+	 * @param string $asType
+	 *				The ID this item was loaded as. This is so that the property configuration
+	 *				for a type is referenced correctly in case $object is no longer the same
+	 *				type as the loaded config specification had it as. 
 	 */
-	public function inject($object) {
-		$objtype = get_class($object);
+	public function inject($object, $asType=null) {
+		$objtype = $asType ? $asType : get_class($object);
 		$mapping = isset($this->injectMap[$objtype]) ? $this->injectMap[$objtype] : null;
 		
+		// first off, set any properties defined in the service specification for this
+		// object type
+		if (isset($this->specs[$objtype]) && isset($this->specs[$objtype]['properties'])) {
+			foreach ($this->specs[$objtype]['properties'] as $key => $value) {
+				$val = $this->convertServiceProperty($value);
+				if (method_exists($object, 'set'.$key)) {
+					$object->{'set'.$key}($val);
+				} else {
+					$object->$key = $val;
+				}
+			}
+		}
+
+		// now, use any cached information about what properties this object type has
+		// and set based on name resolution
 		if (!$mapping) {
-			// This performs public variable based injection
+			// we use an object to prevent array copies if/when passed around
 			$mapping = new ArrayObject();
+			
+			// This performs public variable based injection
 			$robj = new ReflectionObject($object);
 			$properties = $robj->getProperties();
 	

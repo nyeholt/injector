@@ -97,6 +97,15 @@ class Injector {
 	 */
 	private static $instance;
 	
+	
+	/**
+	 * Indicates whether or not to automatically scan properties in injected objects to auto inject
+	 * stuff, similar to the way grails does things. 
+	 *
+	 * @var boolean
+	 */
+	private $autoScanProperties = false;
+	
 	/**
 	 * Create a new injector. 
 	 *
@@ -126,6 +135,15 @@ class Injector {
 			self::$instance = new Injector($config);
 		}
 		return self::$instance;
+	}
+	
+	/**
+	 * Indicate whether we auto scan injected objects for properties to set. 
+	 *
+	 * @param boolean $val
+	 */
+	public function setAutoScanProperties($val) {
+		$this->autoScanProperties = $val;
 	}
 	
 	/**
@@ -326,47 +344,49 @@ class Injector {
 		// now, use any cached information about what properties this object type has
 		// and set based on name resolution
 		if (!$mapping) {
-			// we use an object to prevent array copies if/when passed around
-			$mapping = new ArrayObject();
-			
-			// This performs public variable based injection
-			$robj = new ReflectionObject($object);
-			$properties = $robj->getProperties();
-	
-			foreach ($properties as $propertyObject) {
-				/* @var $propertyObject ReflectionProperty */
-				if ($propertyObject->isPublic() && !$propertyObject->getValue($object)) {
-					$origName = $propertyObject->getName();
-					$name = ucfirst($origName);
-					if ($this->hasService($name)) {
-						// Pull the name out of the registry
-						$value = $this->get($name);
-						$propertyObject->setValue($object, $value);
-						$mapping[$origName] = array('name' => $name, 'type' => 'property');
+			if ($this->autoScanProperties) {
+				// we use an object to prevent array copies if/when passed around
+				$mapping = new ArrayObject();
+
+				// This performs public variable based injection
+				$robj = new ReflectionObject($object);
+				$properties = $robj->getProperties();
+
+				foreach ($properties as $propertyObject) {
+					/* @var $propertyObject ReflectionProperty */
+					if ($propertyObject->isPublic() && !$propertyObject->getValue($object)) {
+						$origName = $propertyObject->getName();
+						$name = ucfirst($origName);
+						if ($this->hasService($name)) {
+							// Pull the name out of the registry
+							$value = $this->get($name);
+							$propertyObject->setValue($object, $value);
+							$mapping[$origName] = array('name' => $name, 'type' => 'property');
+						}
 					}
 				}
-			}
 
-			// and this performs setter based injection
-			$methods = $robj->getMethods(ReflectionMethod::IS_PUBLIC);
+				// and this performs setter based injection
+				$methods = $robj->getMethods(ReflectionMethod::IS_PUBLIC);
 
-			foreach ($methods as $methodObj) {
-				/* @var $methodObj ReflectionMethod */
-				$methName = $methodObj->getName();
-				if (strpos($methName, 'set') === 0) {
-					$pname = substr($methName, 3);
-					if ($this->hasService($pname)) {
-						// Pull the name out of the registry
-						$value = $this->get($pname);
-						$methodObj->invoke($object, $value);
-						$mapping[$pname] = array('name' => $pname, 'type' => 'method');
+				foreach ($methods as $methodObj) {
+					/* @var $methodObj ReflectionMethod */
+					$methName = $methodObj->getName();
+					if (strpos($methName, 'set') === 0) {
+						$pname = substr($methName, 3);
+						if ($this->hasService($pname)) {
+							// Pull the name out of the registry
+							$value = $this->get($pname);
+							$methodObj->invoke($object, $value);
+							$mapping[$pname] = array('name' => $pname, 'type' => 'method');
+						}
 					}
 				}
-			}
 
-			// we store the information about what needs to be injected for objects of this
-			// type here
-			$this->injectMap[get_class($object)] = $mapping;
+				// we store the information about what needs to be injected for objects of this
+				// type here
+				$this->injectMap[get_class($object)] = $mapping;
+			}
 		} else {
 			foreach ($mapping as $prop => $spec) {
 				if ($spec['type'] == 'property') {

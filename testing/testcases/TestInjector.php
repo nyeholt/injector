@@ -8,6 +8,7 @@ class TestInjector extends UnitTestCase
 {
     public function testBasicInjector() {
         $injector = new Injector();
+		$injector->setAutoScanProperties(true);
         $config = array(array('src' => TEST_SERVICES.'/SampleService.php',));
 
         $injector->load($config);
@@ -60,6 +61,7 @@ class TestInjector extends UnitTestCase
 
 	public function testReplaceService() {
 		$injector = new Injector();
+		$injector->setAutoScanProperties(true);
 
         $config = array(array('src' => TEST_SERVICES.'/SampleService.php'));
 
@@ -83,6 +85,7 @@ class TestInjector extends UnitTestCase
 
     public function testAutoSetInjector() {
         $injector = new Injector();
+		$injector->setAutoScanProperties(true);
         $injector->addAutoProperty('auto', 'somevalue');
 		$config = array(array('src' => TEST_SERVICES.'/SampleService.php',));
         $injector->load($config);
@@ -134,6 +137,7 @@ class TestInjector extends UnitTestCase
 
 	public function testInjectUsingSetter() {
 		$injector = new Injector();
+		$injector->setAutoScanProperties(true);
         $config = array(array('src' => TEST_SERVICES.'/SampleService.php',));
 
         $injector->load($config);
@@ -155,6 +159,7 @@ class TestInjector extends UnitTestCase
 	// make sure we can just get any arbitrary object - it should be created for us
 	public function testInstantiateAnObjectViaGet() {
 		$injector = new Injector();
+		$injector->setAutoScanProperties(true);
         $config = array(array('src' => TEST_SERVICES.'/SampleService.php',));
 
         $injector->load($config);
@@ -172,6 +177,7 @@ class TestInjector extends UnitTestCase
 	public function testCircularReference() {
 		$services = array ('CircularOne', 'CircularTwo');
         $injector = new Injector($services);
+		$injector->setAutoScanProperties(true);
 
 		$obj = $injector->get('NeedsBothCirculars');
 
@@ -182,7 +188,7 @@ class TestInjector extends UnitTestCase
 	public function testPrototypeObjects() {
 		$services = array('CircularOne', 'CircularTwo', array('class' => 'NeedsBothCirculars', 'type' => 'prototype'));
 		$injector = new Injector($services);
-
+		$injector->setAutoScanProperties(true);
 		$obj1 = $injector->get('NeedsBothCirculars');
 		$obj2 = $injector->get('NeedsBothCirculars');
 
@@ -216,7 +222,7 @@ class TestInjector extends UnitTestCase
 	
 	public function testOverridePriority() {
 		$injector = new Injector();
-
+		$injector->setAutoScanProperties(true);
         $config = array(
 			array(
 				'src' => TEST_SERVICES.'/SampleService.php',

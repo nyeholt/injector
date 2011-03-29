@@ -107,6 +107,13 @@ class Injector {
 	private $autoScanProperties = false;
 	
 	/**
+	 * The object used to create new class instances
+	 *
+	 * @var InjectionCreator
+	 */
+	protected $objectCreator;
+	
+	/**
 	 * Create a new injector. 
 	 *
 	 * @param array $config
@@ -117,6 +124,7 @@ class Injector {
 		$this->serviceCache = array();
 		$this->autoProperties = array();
 		$this->specs = array();
+		$this->objectCreator = new InjectionCreator;
 
 		if ($config) {
 			$this->load($config);
@@ -144,6 +152,15 @@ class Injector {
 	 */
 	public function setAutoScanProperties($val) {
 		$this->autoScanProperties = $val;
+	}
+	
+	/**
+	 * Sets the object to use for creating new objects
+	 *
+	 * @param InjectionCreator $obj 
+	 */
+	public function setObjectCreator($obj) {
+		$this->objectCreator = $obj;
 	}
 	
 	/**
@@ -216,9 +233,11 @@ class Injector {
 			// to ensure we get cached
 			$spec['id'] = $id;
 
-			if (!class_exists($class)) {
-				throw new Exception("Failed to load '$class' from $file");
-			}
+//			We've removed this check because new functionality means that the 'class' field doesn't need to refer
+//			specifically to a class anymore - it could be a compound statement. 
+//			if (!class_exists($class)) {
+//				throw new Exception("Failed to load '$class' from $file");
+//			}
 
 			// store the specs for now - we lazy load on demand later on. 
 			$this->specs[$id] = $spec;
@@ -234,11 +253,12 @@ class Injector {
 	}
 
 	/**
-	 * Recursively convert a value into its proper representation
+	 * Recursively convert a value into its proper representation with service references
+	 * resolved to actual objects
 	 *
 	 * @param string $value 
 	 */
-	protected function convertServiceProperty($value) {
+	public function convertServiceProperty($value) {
 		if (is_array($value)) {
 			$newVal = array();
 			foreach ($value as $k => $v) {
@@ -287,12 +307,12 @@ class Injector {
 		$class = $spec['class'];
 		
 		// create the object, using any constructor bindings
+		$constructorParams = array();
 		if (isset($spec['constructor']) && is_array($spec['constructor'])) {
-			$reflector = new ReflectionClass($class);
-			$object = $reflector->newInstanceArgs($this->convertServiceProperty($spec['constructor']));
-		} else {
-			$object = new $class;
+			$constructorParams = $spec['constructor'];
 		}
+
+		$object = $this->objectCreator->create($this, $class, $constructorParams);
 		
 		// figure out if we have a specific id set or not
 		if (!$id) {
@@ -467,5 +487,25 @@ class Injector {
 		// If no specific config for this object, we'll just return a new instance
 		// of the object, which means it'll get instantiated and injected appropriately
 		return $this->instantiate($name);
+	}
+}
+
+/**
+ * A class for creating new objects by the injector
+ */
+class InjectionCreator {
+	/**
+	 *
+	 * @param string $object
+	 *					A string representation of the class to create
+	 * @param array $params
+	 *					An array of parameters to be passed to the constructor
+	 */
+	public function create(Injector $injector, $class, $params = array()) {
+		$reflector = new ReflectionClass($class);
+		if (count($params)) {
+			return $reflector->newInstanceArgs($injector->convertServiceProperty($params));
+		}
+		return $reflector->newInstance();
 	}
 }

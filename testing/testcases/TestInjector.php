@@ -288,6 +288,21 @@ class TestInjector extends UnitTestCase
 		$this->assertEqual('NewRequirementsBackend', get_class($requirements->backend));
 		
 	}
+	
+	public function testCustomObjectCreator() {
+		$injector = new Injector();
+		$injector->setObjectCreator(new SSObjectCreator());
+        $config = array(
+			'OriginalRequirementsBackend',
+			'Requirements' =>	array(
+				'class'	=> 'Requirements(\'#$OriginalRequirementsBackend\')'
+			)
+		);
+        $injector->load($config);
+		
+		$requirements = $injector->get('Requirements');
+		$this->assertEqual('OriginalRequirementsBackend', get_class($requirements->backend));
+	}
 }
 
 class TestObject {
@@ -340,4 +355,89 @@ class OriginalRequirementsBackend {
 
 class NewRequirementsBackend {
 	
+}
+
+/**
+ * An example object creator that uses the SilverStripe class(arguments) mechanism for 
+ * creating new objects
+ * 
+ * @see https://github.com/silverstripe/sapphire
+ */
+class SSObjectCreator extends InjectionCreator {
+	
+	public function create($injector, $class, $params = array()) {
+		if(strpos($class,'(') === false) {
+			return parent::create($injector, $class, $params);
+		} else {
+			list($class, $params) = self::parse_class_spec($class);
+			return parent::create($injector, $class, $params);
+		}
+	}
+	
+	/**
+	 * Parses a class-spec, such as "Versioned('Stage','Live')", as passed to create_from_string().
+	 * Returns a 2-elemnent array, with classname and arguments
+	 */
+	static function parse_class_spec($classSpec) {
+		$tokens = token_get_all("<?php $classSpec");
+		$class = null;
+		$args = array();
+		$passedBracket = false;
+		
+		// Keep track of the current bucket that we're putting data into
+		$bucket = &$args;
+		$bucketStack = array();
+		
+		foreach($tokens as $token) {
+			$tName = is_array($token) ? $token[0] : $token;
+			// Get the class naem
+			if($class == null && is_array($token) && $token[0] == T_STRING) {
+				$class = $token[1];
+			// Get arguments
+			} else if(is_array($token)) {
+				switch($token[0]) {
+				case T_CONSTANT_ENCAPSED_STRING:
+					$argString = $token[1];
+					switch($argString[0]) {
+						case '"': $argString = stripcslashes(substr($argString,1,-1)); break;
+						case "'": $argString = str_replace(array("\\\\", "\\'"),array("\\", "'"), substr($argString,1,-1)); break;
+						default: throw new Exception("Bad T_CONSTANT_ENCAPSED_STRING arg $argString");
+					}
+					$bucket[] = $argString;
+					break;
+			
+				case T_DNUMBER:
+					$bucket[] = (double)$token[1];
+					break;
+
+				case T_LNUMBER:
+					$bucket[] = (int)$token[1];
+					break;
+			
+				case T_STRING:
+					switch($token[1]) {
+						case 'true': $args[] = true; break;
+						case 'false': $args[] = false; break;
+						default: throw new Exception("Bad T_STRING arg '{$token[1]}'");
+					}
+				
+				case T_ARRAY:
+					// Add an empty array to the bucket
+					$bucket[] = array();
+					$bucketStack[] = &$bucket;
+					$bucket = &$bucket[sizeof($bucket)-1];
+
+				}
+
+			} else {
+				if($tName == ')') {
+					// Pop-by-reference
+					$bucket = &$bucketStack[sizeof($bucketStack)-1];
+					array_pop($bucketStack);
+				}
+			}
+		}
+	
+		return array($class, $args);
+	}
 }

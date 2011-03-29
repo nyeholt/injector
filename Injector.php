@@ -48,6 +48,12 @@
  *				)
  *			)
  *		)
+ *		// alternatively
+ *		'MyBean'		=> array(
+ *			'class'			=> 'ClassName',
+ *		)
+ *		// or simply
+ *		'OtherBean'		=> 'SomeClass',
  * )
  *
  * In addition to specifying the bindings directly in the configuration,

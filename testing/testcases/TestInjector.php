@@ -21,7 +21,6 @@ class TestInjector extends UnitTestCase
     
     public function testConfiguredInjector() {
         $injector = new Injector();
-        
         $services = array (
 		    array (
 		      'src' => TEST_SERVICES.'/AnotherService.php',
@@ -42,6 +41,22 @@ class TestInjector extends UnitTestCase
 
 		$this->assertEqual('Value', $item->config_property);
     }
+	
+	public function testIdToNameMap() {
+		$injector = new Injector();
+        $services = array (
+		    'FirstId'	=> 'AnotherService',
+			'SecondId'	=> 'SampleService',
+		);
+
+        $injector->load($services);
+		
+        $this->assertTrue($injector->hasService('FirstId'));
+		$this->assertTrue($injector->hasService('SecondId'));
+		
+		$this->assertTrue($injector->get('FirstId') instanceof AnotherService);
+		$this->assertTrue($injector->get('SecondId') instanceof SampleService);
+	}
 
 	public function testReplaceService() {
 		$injector = new Injector();

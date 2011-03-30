@@ -48,6 +48,12 @@
  *				)
  *			)
  *		)
+ *		// alternatively
+ *		'MyBean'		=> array(
+ *			'class'			=> 'ClassName',
+ *		)
+ *		// or simply
+ *		'OtherBean'		=> 'SomeClass',
  * )
  *
  * In addition to specifying the bindings directly in the configuration,
@@ -91,6 +97,22 @@ class Injector {
 	 */
 	private static $instance;
 	
+	
+	/**
+	 * Indicates whether or not to automatically scan properties in injected objects to auto inject
+	 * stuff, similar to the way grails does things. 
+	 *
+	 * @var boolean
+	 */
+	private $autoScanProperties = false;
+	
+	/**
+	 * The object used to create new class instances
+	 *
+	 * @var InjectionCreator
+	 */
+	protected $objectCreator;
+	
 	/**
 	 * Create a new injector. 
 	 *
@@ -102,6 +124,7 @@ class Injector {
 		$this->serviceCache = array();
 		$this->autoProperties = array();
 		$this->specs = array();
+		$this->objectCreator = new InjectionCreator;
 
 		if ($config) {
 			$this->load($config);
@@ -120,6 +143,24 @@ class Injector {
 			self::$instance = new Injector($config);
 		}
 		return self::$instance;
+	}
+	
+	/**
+	 * Indicate whether we auto scan injected objects for properties to set. 
+	 *
+	 * @param boolean $val
+	 */
+	public function setAutoScanProperties($val) {
+		$this->autoScanProperties = $val;
+	}
+	
+	/**
+	 * Sets the object to use for creating new objects
+	 *
+	 * @param InjectionCreator $obj 
+	 */
+	public function setObjectCreator($obj) {
+		$this->objectCreator = $obj;
 	}
 	
 	/**
@@ -192,9 +233,11 @@ class Injector {
 			// to ensure we get cached
 			$spec['id'] = $id;
 
-			if (!class_exists($class)) {
-				throw new Exception("Failed to load '$class' from $file");
-			}
+//			We've removed this check because new functionality means that the 'class' field doesn't need to refer
+//			specifically to a class anymore - it could be a compound statement. 
+//			if (!class_exists($class)) {
+//				throw new Exception("Failed to load '$class' from $file");
+//			}
 
 			// store the specs for now - we lazy load on demand later on. 
 			$this->specs[$id] = $spec;
@@ -210,11 +253,12 @@ class Injector {
 	}
 
 	/**
-	 * Recursively convert a value into its proper representation
+	 * Recursively convert a value into its proper representation with service references
+	 * resolved to actual objects
 	 *
 	 * @param string $value 
 	 */
-	protected function convertServiceProperty($value) {
+	public function convertServiceProperty($value) {
 		if (is_array($value)) {
 			$newVal = array();
 			foreach ($value as $k => $v) {
@@ -263,30 +307,12 @@ class Injector {
 		$class = $spec['class'];
 		
 		// create the object, using any constructor bindings
+		$constructorParams = array();
 		if (isset($spec['constructor']) && is_array($spec['constructor'])) {
-			$reflector = new ReflectionClass($class);
-			$object = $reflector->newInstanceArgs($this->convertServiceProperty($spec['constructor']));
-		} else {
-			$object = new $class;
-		}
-		
-		// see if there's any injections declared in a static on the object
-		$props = isset($spec['properties']) ? $spec['properties'] : array();
-		if (isset($class::$injections)) {
-			foreach ($class::$injections as $key => $val) {
-				$props[$key] = $val;
-			}
+			$constructorParams = $spec['constructor'];
 		}
 
-		// set any properties defined in the service specification
-		foreach ($props as $key => $value) {
-			$val = $this->convertServiceProperty($value);
-			if (method_exists($object, 'set'.$key)) {
-				$object->{'set'.$key}($val);
-			} else {
-				$object->$key = $val;
-			}
-		}
+		$object = $this->objectCreator->create($this, $class, $constructorParams);
 		
 		// figure out if we have a specific id set or not. In some cases, we might be instantiating objects
 		// that we don't manage directly; we don't want to store these in the service cache below
@@ -304,7 +330,7 @@ class Injector {
 		}
 
 		// now inject safely
-		$this->inject($object);
+		$this->inject($object, $id);
 
 		return $object;
 	}
@@ -314,51 +340,80 @@ class Injector {
 	 *
 	 * @param object $object
 	 *				The object to inject
+	 * @param string $asType
+	 *				The ID this item was loaded as. This is so that the property configuration
+	 *				for a type is referenced correctly in case $object is no longer the same
+	 *				type as the loaded config specification had it as. 
 	 */
-	public function inject($object) {
-		$objtype = get_class($object);
+	public function inject($object, $asType=null) {
+		$objtype = $asType ? $asType : get_class($object);
 		$mapping = isset($this->injectMap[$objtype]) ? $this->injectMap[$objtype] : null;
 		
+		if (isset($class::$injections)) {
+			foreach ($class::$injections as $key => $val) {
+				$props[$key] = $val;
+			}
+		}
+		
+		// first off, set any properties defined in the service specification for this
+		// object type
+		if (isset($this->specs[$objtype]) && isset($this->specs[$objtype]['properties'])) {
+			foreach ($this->specs[$objtype]['properties'] as $key => $value) {
+				$val = $this->convertServiceProperty($value);
+				if (method_exists($object, 'set'.$key)) {
+					$object->{'set'.$key}($val);
+				} else {
+					$object->$key = $val;
+				}
+			}
+		}
+
+		// now, use any cached information about what properties this object type has
+		// and set based on name resolution
 		if (!$mapping) {
-			// This performs public variable based injection
-			$mapping = new ArrayObject();
-			$robj = new ReflectionObject($object);
-			$properties = $robj->getProperties();
-	
-			foreach ($properties as $propertyObject) {
-				/* @var $propertyObject ReflectionProperty */
-				if ($propertyObject->isPublic() && !$propertyObject->getValue($object)) {
-					$origName = $propertyObject->getName();
-					$name = ucfirst($origName);
-					if ($this->hasService($name)) {
-						// Pull the name out of the registry
-						$value = $this->get($name);
-						$propertyObject->setValue($object, $value);
-						$mapping[$origName] = array('name' => $name, 'type' => 'property');
+			if ($this->autoScanProperties) {
+				// we use an object to prevent array copies if/when passed around
+				$mapping = new ArrayObject();
+
+				// This performs public variable based injection
+				$robj = new ReflectionObject($object);
+				$properties = $robj->getProperties();
+
+				foreach ($properties as $propertyObject) {
+					/* @var $propertyObject ReflectionProperty */
+					if ($propertyObject->isPublic() && !$propertyObject->getValue($object)) {
+						$origName = $propertyObject->getName();
+						$name = ucfirst($origName);
+						if ($this->hasService($name)) {
+							// Pull the name out of the registry
+							$value = $this->get($name);
+							$propertyObject->setValue($object, $value);
+							$mapping[$origName] = array('name' => $name, 'type' => 'property');
+						}
 					}
 				}
-			}
 
-			// and this performs setter based injection
-			$methods = $robj->getMethods(ReflectionMethod::IS_PUBLIC);
+				// and this performs setter based injection
+				$methods = $robj->getMethods(ReflectionMethod::IS_PUBLIC);
 
-			foreach ($methods as $methodObj) {
-				/* @var $methodObj ReflectionMethod */
-				$methName = $methodObj->getName();
-				if (strpos($methName, 'set') === 0) {
-					$pname = substr($methName, 3);
-					if ($this->hasService($pname)) {
-						// Pull the name out of the registry
-						$value = $this->get($pname);
-						$methodObj->invoke($object, $value);
-						$mapping[$pname] = array('name' => $pname, 'type' => 'method');
+				foreach ($methods as $methodObj) {
+					/* @var $methodObj ReflectionMethod */
+					$methName = $methodObj->getName();
+					if (strpos($methName, 'set') === 0) {
+						$pname = substr($methName, 3);
+						if ($this->hasService($pname)) {
+							// Pull the name out of the registry
+							$value = $this->get($pname);
+							$methodObj->invoke($object, $value);
+							$mapping[$pname] = array('name' => $pname, 'type' => 'method');
+						}
 					}
 				}
-			}
 
-			// we store the information about what needs to be injected for objects of this
-			// type here
-			$this->injectMap[get_class($object)] = $mapping;
+				// we store the information about what needs to be injected for objects of this
+				// type here
+				$this->injectMap[get_class($object)] = $mapping;
+			}
 		} else {
 			foreach ($mapping as $prop => $spec) {
 				if ($spec['type'] == 'property') {
@@ -371,6 +426,14 @@ class Injector {
 				}
 			}
 		}
+		
+//		disabled static injections for now
+//		if (isset($class::$injections)) {
+//			foreach ($class::$injections as $key => $val) {
+//				$props[$key] = $val;
+//			}
+//		}
+//		
 		
 		foreach ($this->autoProperties as $property => $value) {
 			if (!isset($object->$property)) {
@@ -439,5 +502,25 @@ class Injector {
 		// If no specific config for this object, we'll just return a new instance
 		// of the object, which means it'll get instantiated and injected appropriately
 		return $this->instantiate($name);
+	}
+}
+
+/**
+ * A class for creating new objects by the injector
+ */
+class InjectionCreator {
+	/**
+	 *
+	 * @param string $object
+	 *					A string representation of the class to create
+	 * @param array $params
+	 *					An array of parameters to be passed to the constructor
+	 */
+	public function create(Injector $injector, $class, $params = array()) {
+		$reflector = new ReflectionClass($class);
+		if (count($params)) {
+			return $reflector->newInstanceArgs($injector->convertServiceProperty($params));
+		}
+		return $reflector->newInstance();
 	}
 }

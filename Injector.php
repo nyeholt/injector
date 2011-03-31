@@ -164,6 +164,29 @@ class Injector {
 	}
 	
 	/**
+	 * Add in a specific mapping that should be catered for on a type. 
+	 * This allows configuration of what should occur when an object
+	 * of a particular type is injected, and what items should be injected
+	 * for those properties / methods.
+	 *
+	 * @param type $class
+	 *					The class to set a mapping for
+	 * @param type $property
+	 *					The property to set the mapping for
+	 * @param type $injectType 
+	 *					The registered type that will be injected
+	 * @param string $injectVia
+	 *					Whether to inject by setting a property or calling a setter
+	 */
+	public function setInjectMapping($class, $property, $toInject, $injectVia = 'prop') {
+		$mapping = isset($this->injectMap[$class]) ? $this->injectMap[$class] : array();
+		
+		$mapping[$property] = array('name' => $toInject, 'type' => $injectVia);
+		
+		$this->injectMap[$class] = $mapping;
+	}
+	
+	/**
 	 * Add an object that should be automatically set on managed objects
 	 *
 	 * This allows you to specify, for example, that EVERY managed object
@@ -405,7 +428,7 @@ class Injector {
 							// Pull the name out of the registry
 							$value = $this->get($pname);
 							$methodObj->invoke($object, $value);
-							$mapping[$pname] = array('name' => $pname, 'type' => 'method');
+							$mapping[$methName] = array('name' => $pname, 'type' => 'method');
 						}
 					}
 				}
@@ -420,7 +443,7 @@ class Injector {
 					$value = $this->get($spec['name']);
 					$object->$prop = $value;
 				} else {
-					$method = 'set'.$prop;
+					$method = $prop;
 					$value = $this->get($spec['name']);
 					$object->$method($value);
 				}

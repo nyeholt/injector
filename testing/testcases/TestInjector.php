@@ -1,60 +1,60 @@
 <?php
 
-include_once dirname(dirname(dirname(__FILE__))).'/Injector.php';
+include_once dirname(dirname(dirname(__FILE__))) . '/Injector.php';
 
-define('TEST_SERVICES', dirname(dirname(__FILE__)).'/services');
+define('TEST_SERVICES', dirname(dirname(__FILE__)) . '/services');
 
-class TestInjector extends UnitTestCase
-{
-    public function testBasicInjector() {
-        $injector = new Injector();
+class TestInjector extends UnitTestCase {
+
+	public function testBasicInjector() {
+		$injector = new Injector();
 		$injector->setAutoScanProperties(true);
-        $config = array(array('src' => TEST_SERVICES.'/SampleService.php',));
+		$config = array(array('src' => TEST_SERVICES . '/SampleService.php',));
 
-        $injector->load($config);
-        $this->assertTrue($injector->hasService('SampleService'));
-                
-        $myObject = new TestObject();
-        $injector->inject($myObject);
-        
-        $this->assertEqual(get_class($myObject->sampleService), 'SampleService');
-    }
-    
-    public function testConfiguredInjector() {
-        $injector = new Injector();
-        $services = array (
-		    array (
-		      'src' => TEST_SERVICES.'/AnotherService.php',
-		      'properties' => array('config_property' => 'Value'),
-		    ),
+		$injector->load($config);
+		$this->assertTrue($injector->hasService('SampleService'));
+
+		$myObject = new TestObject();
+		$injector->inject($myObject);
+
+		$this->assertEqual(get_class($myObject->sampleService), 'SampleService');
+	}
+
+	public function testConfiguredInjector() {
+		$injector = new Injector();
+		$services = array(
 			array(
-				'src' => TEST_SERVICES.'/SampleService.php',
+				'src' => TEST_SERVICES . '/AnotherService.php',
+				'properties' => array('config_property' => 'Value'),
+			),
+			array(
+				'src' => TEST_SERVICES . '/SampleService.php',
 			)
 		);
 
-        $injector->load($services);
-        $this->assertTrue($injector->hasService('SampleService'));
-        // We expect a false because the 'AnotherService' is actually
-        // just a replacement of the SampleService
-	    $this->assertTrue($injector->hasService('AnotherService'));
+		$injector->load($services);
+		$this->assertTrue($injector->hasService('SampleService'));
+		// We expect a false because the 'AnotherService' is actually
+		// just a replacement of the SampleService
+		$this->assertTrue($injector->hasService('AnotherService'));
 
 		$item = $injector->get('AnotherService');
 
 		$this->assertEqual('Value', $item->config_property);
-    }
-	
+	}
+
 	public function testIdToNameMap() {
 		$injector = new Injector();
-        $services = array (
-		    'FirstId'	=> 'AnotherService',
-			'SecondId'	=> 'SampleService',
+		$services = array(
+			'FirstId' => 'AnotherService',
+			'SecondId' => 'SampleService',
 		);
 
-        $injector->load($services);
-		
-        $this->assertTrue($injector->hasService('FirstId'));
+		$injector->load($services);
+
+		$this->assertTrue($injector->hasService('FirstId'));
 		$this->assertTrue($injector->hasService('SecondId'));
-		
+
 		$this->assertTrue($injector->get('FirstId') instanceof AnotherService);
 		$this->assertTrue($injector->get('SecondId') instanceof SampleService);
 	}
@@ -63,72 +63,97 @@ class TestInjector extends UnitTestCase
 		$injector = new Injector();
 		$injector->setAutoScanProperties(true);
 
-        $config = array(array('src' => TEST_SERVICES.'/SampleService.php'));
+		$config = array(array('src' => TEST_SERVICES . '/SampleService.php'));
 
 		// load
-        $injector->load($config);
+		$injector->load($config);
 
 		// inject
 		$myObject = new TestObject();
-        $injector->inject($myObject);
+		$injector->inject($myObject);
 
-        $this->assertEqual(get_class($myObject->sampleService), 'SampleService');
-		
+		$this->assertEqual(get_class($myObject->sampleService), 'SampleService');
+
 		// also tests that ID can be the key in the array
-		$config = array('SampleService' => array('src' => TEST_SERVICES.'/AnotherService.php')); // , 'id' => 'SampleService'));
+		$config = array('SampleService' => array('src' => TEST_SERVICES . '/AnotherService.php')); // , 'id' => 'SampleService'));
 		// load
-        $injector->load($config);
+		$injector->load($config);
 
 		$injector->inject($myObject);
-        $this->assertEqual('AnotherService', get_class($myObject->sampleService));
+		$this->assertEqual('AnotherService', get_class($myObject->sampleService));
 	}
 
-    public function testAutoSetInjector() {
-        $injector = new Injector();
+	public function testAutoSetInjector() {
+		$injector = new Injector();
 		$injector->setAutoScanProperties(true);
-        $injector->addAutoProperty('auto', 'somevalue');
-		$config = array(array('src' => TEST_SERVICES.'/SampleService.php',));
-        $injector->load($config);
+		$injector->addAutoProperty('auto', 'somevalue');
+		$config = array(array('src' => TEST_SERVICES . '/SampleService.php',));
+		$injector->load($config);
 
-        $this->assertTrue($injector->hasService('SampleService'));
-        // We expect a false because the 'AnotherService' is actually
-        // just a replacement of the SampleService
+		$this->assertTrue($injector->hasService('SampleService'));
+		// We expect a false because the 'AnotherService' is actually
+		// just a replacement of the SampleService
 
-        $myObject = new TestObject();
+		$myObject = new TestObject();
 
-        $injector->inject($myObject);
+		$injector->inject($myObject);
 
-        $this->assertEqual(get_class($myObject->sampleService), 'SampleService');
-        $this->assertEqual($myObject->auto, 'somevalue');
-    }
-	
+		$this->assertEqual(get_class($myObject->sampleService), 'SampleService');
+		$this->assertEqual($myObject->auto, 'somevalue');
+	}
+
+	public function testSettingSpecificProperty() {
+		$injector = new Injector();
+
+		$config = array('AnotherService');
+
+		$injector->load($config);
+		$injector->setInjectMapping('TestObject', 'sampleService', 'AnotherService');
+		$testObject = $injector->get('TestObject');
+
+		$this->assertEqual(get_class($testObject->sampleService), 'AnotherService');
+	}
+
+	public function testSettingSpecificMethod() {
+		$injector = new Injector();
+
+		$config = array('AnotherService');
+
+		$injector->load($config);
+		$injector->setInjectMapping('TestObject', 'setSomething', 'AnotherService', 'method');
+
+		$testObject = $injector->get('TestObject');
+
+		$this->assertEqual(get_class($testObject->sampleService), 'AnotherService');
+	}
+
 	public function testInjectUsingConstructor() {
 		$injector = new Injector();
-        $config = array(array(
-			'src' => TEST_SERVICES.'/SampleService.php',
-			'constructor' => array(
-				'val1',
-				'val2',
-			)
-		));
-		
+		$config = array(array(
+				'src' => TEST_SERVICES . '/SampleService.php',
+				'constructor' => array(
+					'val1',
+					'val2',
+				)
+				));
+
 		$injector->load($config);
 		$sample = $injector->get('SampleService');
 		$this->assertEqual($sample->constructorVarOne, 'val1');
 		$this->assertEqual($sample->constructorVarTwo, 'val2');
-		
+
 		$injector = new Injector();
-        $config = array(
+		$config = array(
 			'AnotherService',
 			array(
-				'src' => TEST_SERVICES.'/SampleService.php',
+				'src' => TEST_SERVICES . '/SampleService.php',
 				'constructor' => array(
 					'val1',
 					'#$AnotherService',
 				)
 			)
 		);
-		
+
 		$injector->load($config);
 		$sample = $injector->get('SampleService');
 		$this->assertEqual($sample->constructorVarOne, 'val1');
@@ -138,45 +163,45 @@ class TestInjector extends UnitTestCase
 	public function testInjectUsingSetter() {
 		$injector = new Injector();
 		$injector->setAutoScanProperties(true);
-        $config = array(array('src' => TEST_SERVICES.'/SampleService.php',));
+		$config = array(array('src' => TEST_SERVICES . '/SampleService.php',));
 
-        $injector->load($config);
-        $this->assertTrue($injector->hasService('SampleService'));
+		$injector->load($config);
+		$this->assertTrue($injector->hasService('SampleService'));
 
-        $myObject = new OtherTestObject();
-        $injector->inject($myObject);
+		$myObject = new OtherTestObject();
+		$injector->inject($myObject);
 
-        $this->assertEqual(get_class($myObject->s()), 'SampleService');
+		$this->assertEqual(get_class($myObject->s()), 'SampleService');
 
 		// and again because it goes down a different code path when setting things
 		// based on the inject map
 		$myObject = new OtherTestObject();
-        $injector->inject($myObject);
+		$injector->inject($myObject);
 
-        $this->assertEqual(get_class($myObject->s()), 'SampleService');
+		$this->assertEqual(get_class($myObject->s()), 'SampleService');
 	}
-	
+
 	// make sure we can just get any arbitrary object - it should be created for us
 	public function testInstantiateAnObjectViaGet() {
 		$injector = new Injector();
 		$injector->setAutoScanProperties(true);
-        $config = array(array('src' => TEST_SERVICES.'/SampleService.php',));
+		$config = array(array('src' => TEST_SERVICES . '/SampleService.php',));
 
-        $injector->load($config);
-        $this->assertTrue($injector->hasService('SampleService'));
+		$injector->load($config);
+		$this->assertTrue($injector->hasService('SampleService'));
 
-        $myObject = $injector->get('OtherTestObject');
-        $this->assertEqual(get_class($myObject->s()), 'SampleService');
+		$myObject = $injector->get('OtherTestObject');
+		$this->assertEqual(get_class($myObject->s()), 'SampleService');
 
 		// and again because it goes down a different code path when setting things
 		// based on the inject map
 		$myObject = $injector->get('OtherTestObject');
-        $this->assertEqual(get_class($myObject->s()), 'SampleService');
+		$this->assertEqual(get_class($myObject->s()), 'SampleService');
 	}
 
 	public function testCircularReference() {
-		$services = array ('CircularOne', 'CircularTwo');
-        $injector = new Injector($services);
+		$services = array('CircularOne', 'CircularTwo');
+		$injector = new Injector($services);
 		$injector->setAutoScanProperties(true);
 
 		$obj = $injector->get('NeedsBothCirculars');
@@ -202,7 +227,6 @@ class TestInjector extends UnitTestCase
 		$this->assertEqual($obj1->circularOne, $obj2->circularOne);
 		$this->assertNotEqual($obj1, $obj2);
 	}
-	
 
 	public function testSimpleInstantiation() {
 		$services = array('CircularOne', 'CircularTwo');
@@ -219,41 +243,40 @@ class TestInjector extends UnitTestCase
 		$this->assertEqual($obj1->circularOne, $obj2->circularOne);
 		$this->assertNotEqual($obj1, $obj2);
 	}
-	
+
 	public function testOverridePriority() {
 		$injector = new Injector();
 		$injector->setAutoScanProperties(true);
-        $config = array(
+		$config = array(
 			array(
-				'src' => TEST_SERVICES.'/SampleService.php',
+				'src' => TEST_SERVICES . '/SampleService.php',
 				'priority' => 10,
 			)
 		);
 
 		// load
-        $injector->load($config);
+		$injector->load($config);
 
 		// inject
 		$myObject = new TestObject();
-        $injector->inject($myObject);
+		$injector->inject($myObject);
 
-        $this->assertEqual(get_class($myObject->sampleService), 'SampleService');
-		
+		$this->assertEqual(get_class($myObject->sampleService), 'SampleService');
+
 		$config = array(
 			array(
-				'src' => TEST_SERVICES.'/AnotherService.php', 
+				'src' => TEST_SERVICES . '/AnotherService.php',
 				'id' => 'SampleService',
 				'priority' => 1,
 			)
 		);
 		// load
-        $injector->load($config);
+		$injector->load($config);
 
 		$injector->inject($myObject);
-        $this->assertEqual('SampleService', get_class($myObject->sampleService));
+		$this->assertEqual('SampleService', get_class($myObject->sampleService));
 	}
-	
-	
+
 	/**
 	 * Specific test method to illustrate various ways of setting a requirements backend
 	 */
@@ -262,32 +285,32 @@ class TestInjector extends UnitTestCase
 		$config = array(
 			'OriginalRequirementsBackend',
 			'NewRequirementsBackend',
-			'Requirements' =>	array(
-				'constructor'	=> array(
+			'Requirements' => array(
+				'constructor' => array(
 					'#$OriginalRequirementsBackend'
 				)
 			)
 		);
 
 		$injector->load($config);
-		
+
 		$requirements = $injector->get('Requirements');
 		$this->assertEqual('OriginalRequirementsBackend', get_class($requirements->backend));
 
 		// just overriding the definition here
 		$injector->load(array(
-			'Requirements' =>	array(
-				'constructor'	=> array(
+			'Requirements' => array(
+				'constructor' => array(
 					'#$NewRequirementsBackend'
 				)
 			)
 		));
-		
+
 		// requirements should have been reinstantiated with the new bean setting
 		$requirements = $injector->get('Requirements');
 		$this->assertEqual('NewRequirementsBackend', get_class($requirements->backend));
 	}
-	
+
 	/**
 	 * disabled for now
 	 */
@@ -302,29 +325,37 @@ class TestInjector extends UnitTestCase
 //		$si = $injector->get('StaticInjections');
 //		$this->assertEqual('NewRequirementsBackend', get_class($si->backend));
 	}
-	
+
 	public function testCustomObjectCreator() {
 		$injector = new Injector();
 		$injector->setObjectCreator(new SSObjectCreator());
-        $config = array(
+		$config = array(
 			'OriginalRequirementsBackend',
-			'Requirements' =>	array(
-				'class'	=> 'Requirements(\'#$OriginalRequirementsBackend\')'
+			'Requirements' => array(
+				'class' => 'Requirements(\'#$OriginalRequirementsBackend\')'
 			)
 		);
-        $injector->load($config);
-		
+		$injector->load($config);
+
 		$requirements = $injector->get('Requirements');
 		$this->assertEqual('OriginalRequirementsBackend', get_class($requirements->backend));
 	}
+
 }
 
 class TestObject {
-    public $sampleService;
+
+	public $sampleService;
+
+	public function setSomething($v) {
+		$this->sampleService = $v;
+	}
+
 }
 
 class OtherTestObject {
-    private $sampleService;
+
+	private $sampleService;
 
 	public function setSampleService($s) {
 		$this->sampleService = $s;
@@ -333,69 +364,77 @@ class OtherTestObject {
 	public function s() {
 		return $this->sampleService;
 	}
+
 }
 
 class CircularOne {
+
 	public $circularTwo;
+
 }
 
 class CircularTwo {
+
 	public $circularOne;
+
 }
 
 class NeedsBothCirculars {
+
 	public $circularOne;
 	public $circularTwo;
-
 	public $var;
+
 }
 
-
 class Requirements {
+
 	public $backend;
-	
+
 	public function __construct($backend) {
 		$this->backend = $backend;
 	}
-	
+
 	public function setBackend($backend) {
 		$this->backend = $backend;
 	}
+
 }
 
 class OriginalRequirementsBackend {
-	
+
 }
 
 class NewRequirementsBackend {
-	
+
 }
 
 class StaticInjections {
+
 	public $backend;
-	
 	static $injections = array(
-		'backend'	=> '#$NewRequirementsBackend'
+		'backend' => '#$NewRequirementsBackend'
 	);
+
 }
 
 /**
- * An example object creator that uses the SilverStripe class(arguments) mechanism for 
+ * An example object creator that uses the SilverStripe class(arguments) mechanism for
  * creating new objects
- * 
+ *
  * @see https://github.com/silverstripe/sapphire
  */
 class SSObjectCreator extends InjectionCreator {
-	
+
 	public function create($injector, $class, $params = array()) {
-		if(strpos($class,'(') === false) {
+		if (strpos($class, '(') === false) {
 			return parent::create($injector, $class, $params);
 		} else {
 			list($class, $params) = self::parse_class_spec($class);
 			return parent::create($injector, $class, $params);
 		}
 	}
-	
+
 	/**
 	 * Parses a class-spec, such as "Versioned('Stage','Live')", as passed to create_from_string().
 	 * Returns a 2-elemnent array, with classname and arguments
@@ -405,61 +444,64 @@ class SSObjectCreator extends InjectionCreator {
 		$class = null;
 		$args = array();
 		$passedBracket = false;
-		
+
 		// Keep track of the current bucket that we're putting data into
 		$bucket = &$args;
 		$bucketStack = array();
-		
-		foreach($tokens as $token) {
+
+		foreach ($tokens as $token) {
 			$tName = is_array($token) ? $token[0] : $token;
 			// Get the class naem
-			if($class == null && is_array($token) && $token[0] == T_STRING) {
+			if ($class == null && is_array($token) && $token[0] == T_STRING) {
 				$class = $token[1];
-			// Get arguments
-			} else if(is_array($token)) {
-				switch($token[0]) {
-				case T_CONSTANT_ENCAPSED_STRING:
-					$argString = $token[1];
-					switch($argString[0]) {
-						case '"': $argString = stripcslashes(substr($argString,1,-1)); break;
-						case "'": $argString = str_replace(array("\\\\", "\\'"),array("\\", "'"), substr($argString,1,-1)); break;
-						default: throw new Exception("Bad T_CONSTANT_ENCAPSED_STRING arg $argString");
-					}
-					$bucket[] = $argString;
-					break;
-			
-				case T_DNUMBER:
-					$bucket[] = (double)$token[1];
-					break;
+				// Get arguments
+			} else if (is_array($token)) {
+				switch ($token[0]) {
+					case T_CONSTANT_ENCAPSED_STRING:
+						$argString = $token[1];
+						switch ($argString[0]) {
+							case '"': $argString = stripcslashes(substr($argString, 1, -1));
+								break;
+							case "'": $argString = str_replace(array("\\\\", "\\'"), array("\\", "'"), substr($argString, 1, -1));
+								break;
+							default: throw new Exception("Bad T_CONSTANT_ENCAPSED_STRING arg $argString");
+						}
+						$bucket[] = $argString;
+						break;
 
-				case T_LNUMBER:
-					$bucket[] = (int)$token[1];
-					break;
-			
-				case T_STRING:
-					switch($token[1]) {
-						case 'true': $args[] = true; break;
-						case 'false': $args[] = false; break;
-						default: throw new Exception("Bad T_STRING arg '{$token[1]}'");
-					}
-				
-				case T_ARRAY:
-					// Add an empty array to the bucket
-					$bucket[] = array();
-					$bucketStack[] = &$bucket;
-					$bucket = &$bucket[sizeof($bucket)-1];
+					case T_DNUMBER:
+						$bucket[] = (double) $token[1];
+						break;
 
+					case T_LNUMBER:
+						$bucket[] = (int) $token[1];
+						break;
+
+					case T_STRING:
+						switch ($token[1]) {
+							case 'true': $args[] = true;
+								break;
+							case 'false': $args[] = false;
+								break;
+							default: throw new Exception("Bad T_STRING arg '{$token[1]}'");
+						}
+
+					case T_ARRAY:
+						// Add an empty array to the bucket
+						$bucket[] = array();
+						$bucketStack[] = &$bucket;
+						$bucket = &$bucket[sizeof($bucket) - 1];
 				}
-
 			} else {
-				if($tName == ')') {
+				if ($tName == ')') {
 					// Pop-by-reference
-					$bucket = &$bucketStack[sizeof($bucketStack)-1];
+					$bucket = &$bucketStack[sizeof($bucketStack) - 1];
 					array_pop($bucketStack);
 				}
 			}
 		}
-	
+
 		return array($class, $args);
 	}
+
 }

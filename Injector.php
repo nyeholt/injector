@@ -178,7 +178,7 @@ class Injector {
 	 * @param string $injectVia
 	 *					Whether to inject by setting a property or calling a setter
 	 */
-	public function setInjectMapping($class, $property, $toInject, $injectVia = 'prop') {
+	public function setInjectMapping($class, $property, $toInject, $injectVia = 'property') {
 		$mapping = isset($this->injectMap[$class]) ? $this->injectMap[$class] : array();
 		
 		$mapping[$property] = array('name' => $toInject, 'type' => $injectVia);
@@ -371,12 +371,6 @@ class Injector {
 	public function inject($object, $asType=null) {
 		$objtype = $asType ? $asType : get_class($object);
 		$mapping = isset($this->injectMap[$objtype]) ? $this->injectMap[$objtype] : null;
-		
-		if (isset($class::$injections)) {
-			foreach ($class::$injections as $key => $val) {
-				$props[$key] = $val;
-			}
-		}
 		
 		// first off, set any properties defined in the service specification for this
 		// object type

@@ -466,10 +466,30 @@ class Injector {
 	}
 
 	/**
-	 * Does the given service exist?
+	 * Does the given service exist, and if so, what's the stored name for it?
+	 * 
+	 * We do a special check here for services that are using compound names. For example, 
+	 * we might want to say that a property should be injected with Log.File or Log.Memory,
+	 * but have only registered a 'Log' service, we'll instead return that. 
+	 * 
+	 * Will recursively call hasService for each depth of dotting
+	 * 
+	 * @return string 
+	 *				The name of the service (as it might be different from the one passed in)
 	 */
 	public function hasService($name) {
-		return isset($this->specs[$name]);
+		// common case, get it overwith first
+		if (isset($this->specs[$name])) {
+			return $name;
+		}
+		
+		// okay, check whether we've got a compound name - don't worry about 0 index, cause that's an 
+		// invalid name
+		if (!strpos($name, '.')) {
+			return null;
+		}
+		
+		return $this->hasService(substr($name, 0, strrpos($name, '.')));
 	}
 
 	/**
@@ -500,19 +520,20 @@ class Injector {
 	 * @param $name the name of the service to retrieve
 	 */
 	public function get($name) {
-		if ($this->hasService($name)) {
+		// reassign the name as it might actually be a compound name
+		if ($serviceName = $this->hasService($name)) {
 			// check to see what the type of bean is. If it's a prototype,
 			// we don't want to return the singleton version of it.
-			$spec = $this->specs[$name];
+			$spec = $this->specs[$serviceName];
 			$type = isset($spec['type']) ? $spec['type'] : null;
 
 			if ($type && $type == 'prototype') {
-				return $this->instantiate($spec, $name);
+				return $this->instantiate($spec, $serviceName);
 			} else {
-				if (!isset($this->serviceCache[$name])) {
-					$this->instantiate($spec, $name);
+				if (!isset($this->serviceCache[$serviceName])) {
+					$this->instantiate($spec, $serviceName);
 				}
-				return $this->serviceCache[$name];
+				return $this->serviceCache[$serviceName];
 			}
 		}
 		

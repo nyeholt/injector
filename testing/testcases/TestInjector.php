@@ -104,9 +104,7 @@ class TestInjector extends UnitTestCase {
 
 	public function testSettingSpecificProperty() {
 		$injector = new Injector();
-
 		$config = array('AnotherService');
-
 		$injector->load($config);
 		$injector->setInjectMapping('TestObject', 'sampleService', 'AnotherService');
 		$testObject = $injector->get('TestObject');
@@ -116,15 +114,39 @@ class TestInjector extends UnitTestCase {
 
 	public function testSettingSpecificMethod() {
 		$injector = new Injector();
-
 		$config = array('AnotherService');
-
 		$injector->load($config);
 		$injector->setInjectMapping('TestObject', 'setSomething', 'AnotherService', 'method');
 
 		$testObject = $injector->get('TestObject');
 
 		$this->assertEqual(get_class($testObject->sampleService), 'AnotherService');
+	}
+	
+	public function testInjectingScopedService() {
+		$injector = new Injector();
+		
+		$config = array(
+			'AnotherService',
+			'AnotherService.DottedChild'	=> 'SampleService',
+		);
+		
+		$injector->load($config);
+		
+		$service = $injector->get('AnotherService.DottedChild');
+		$this->assertEqual(get_class($service), 'SampleService');
+		
+		$service = $injector->get('AnotherService.Subset');
+		$this->assertEqual(get_class($service), 'AnotherService');
+		
+		$injector->setInjectMapping('TestObject', 'sampleService', 'AnotherService.Geronimo');
+		$testObject = $injector->get('TestObject');
+		$this->assertEqual(get_class($testObject->sampleService), 'AnotherService');
+		
+		$injector->setInjectMapping('TestObject', 'sampleService', 'AnotherService.DottedChild.AnotherDown');
+		$testObject = $injector->get('TestObject');
+		$this->assertEqual(get_class($testObject->sampleService), 'SampleService');
+		
 	}
 
 	public function testInjectUsingConstructor() {

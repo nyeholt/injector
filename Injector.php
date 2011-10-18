@@ -124,7 +124,9 @@ class Injector {
 		$this->serviceCache = array();
 		$this->autoProperties = array();
 		$this->specs = array();
-		$this->objectCreator = new InjectionCreator;
+
+		$creatorClass = isset($config['creator']) ? $config['creator'] : 'InjectionCreator';
+		$this->objectCreator = new $creatorClass;
 
 		if ($config) {
 			$this->load($config);
@@ -239,8 +241,7 @@ class Injector {
 			
 			$priority = isset($spec['priority']) ? $spec['priority'] : 1;
 			
-			// see if we already have this defined. If so, check 
-			// priority weighting
+			// see if we already have this defined. If so, check priority weighting
 			if (isset($this->specs[$id]) && isset($this->specs[$id]['priority'])) {
 				if ($this->specs[$id]['priority'] > $priority) {
 					return;
@@ -328,7 +329,7 @@ class Injector {
 			$spec = array('class' => $spec);
 		}
 		$class = $spec['class'];
-		
+
 		// create the object, using any constructor bindings
 		$constructorParams = array();
 		if (isset($spec['constructor']) && is_array($spec['constructor'])) {
@@ -377,11 +378,7 @@ class Injector {
 		if (isset($this->specs[$objtype]) && isset($this->specs[$objtype]['properties'])) {
 			foreach ($this->specs[$objtype]['properties'] as $key => $value) {
 				$val = $this->convertServiceProperty($value);
-				if (method_exists($object, 'set'.$key)) {
-					$object->{'set'.$key}($val);
-				} else {
-					$object->$key = $val;
-				}
+				$this->setObjectProperty($object, $key, $val);
 			}
 		}
 
@@ -444,24 +441,47 @@ class Injector {
 			}
 		}
 		
-//		disabled static injections for now
-//		if (isset($class::$injections)) {
-//			foreach ($class::$injections as $key => $val) {
-//				$props[$key] = $val;
-//			}
-//		}
-//		
-		
+		// If the type defines some injections, set them here
+		if (isset($object::$injections)) {
+			foreach ($object::$injections as $property => $value) {
+				// we're checking isset in case it already has a property at this name
+				// this doesn't catch privately set things, but they will only be set by a setter method, 
+				// which should be responsible for preventing further setting if it doesn't want it. 
+				if (!isset($object->$property)) {
+					$value = $this->convertServiceProperty($value);
+					$this->setObjectProperty($object, $property, $value);
+				}
+			}
+		}
+
 		foreach ($this->autoProperties as $property => $value) {
 			if (!isset($object->$property)) {
 				$value = $this->convertServiceProperty($value);
-				$object->$property = $value;
+				$this->setObjectProperty($object, $property, $value);
 			}
 		}
 
 		// Call the 'injected' method if it exists
 		if (method_exists($object, 'injected')) {
 			$object->injected();
+		}
+	}
+
+	/**
+	 * Helper to set a property's value
+	 *
+	 * @param object $object
+	 *					Set an object's property to a specific value
+	 * @param string $name
+	 *					The name of the property to set
+	 * @param mixed $value 
+	 *					The value to set
+	 */
+	protected function setObjectProperty($object, $name, $value) {
+		if (method_exists($object, 'set'.$name)) {
+			$object->{'set'.$name}($value);
+		} else {
+			$object->$name = $value;
 		}
 	}
 

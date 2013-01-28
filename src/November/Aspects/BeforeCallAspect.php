@@ -1,5 +1,7 @@
 <?php
 
+namespace November\Aspects;
+
 /**
  * A BeforeCallAspect is run before a method is executed
  *

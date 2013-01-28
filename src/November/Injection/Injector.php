@@ -1,4 +1,7 @@
 <?php
+
+namespace November\Injection;
+
 /**
  * LICENSE
  *
@@ -16,35 +19,79 @@
 /**
  * A simple injection manager that manages loading beans and injecting
  * dependencies between them. It borrows quite a lot from ideas taken from
- * Spring's configuration.
- *
- * There are two ways to have services managed by Injector; firstly
- * by specifying an explicit configuration array, secondly by annotating
- * various classes and preprocessing them to generate this configuration
- * automatically (@TODO). 
+ * Spring's configuration, but is adapted to the stateless PHP way of doing
+ * things. 
+ * 
+ * In its simplest form, the dependency injector can be used as a mechanism to
+ * instantiate objects. Simply call
+ * 
+ * Injector::inst()->get('ClassName')
+ * 
+ * and a new instance of ClassName will be created and returned to you. 
+ * 
+ * Classes can have specific configuration defined for them to 
+ * indicate dependencies that should be injected. This takes the form of 
+ * a static variable $dependencies defined in the class (or configuration),
+ * which indicates the name of a property that should be set. 
+ * 
+ * eg 
+ * 
+ * <code>
+ * class MyController extends Controller {
+ * 
+ *		public $permissions;
+ *		public $defaultText;
+ * 
+ *		static $dependencies = array(
+ *			'defaultText'		=> 'Override in configuration',
+ *			'permissions'		=> '%$PermissionService',
+ *		);
+ * }
+ * </code>
+ * 
+ * will result in an object of type MyController having the defaultText property
+ * set to 'Override in configuration', and an object identified
+ * as PermissionService set into the property called 'permissions'. The %$ 
+ * syntax tells the injector to look the provided name up as an item to be created
+ * by the Injector itself. 
+ * 
+ * A key concept of the injector is whether to manage the object as
+ * 
+ * * A pseudo-singleton, in that only one item will be created for a particular
+ *   identifier (but the same class could be used for multiple identifiers)
+ * * A prototype, where the same configuration is used, but a new object is
+ *   created each time
+ * * unmanaged, in which case a new object is created and injected, but no 
+ *   information about its state is managed.
+ * 
+ * Additional configuration of items managed by the injector can be done by 
+ * providing configuration for the types, either by manually loading in an 
+ * array describing the configuration, or by specifying the configuration
+ * for a type via SilverStripe's configuration mechanism. 
  *
  * Specify a configuration array of the format
  *
  * array(
  *		array(
  *			'id'			=> 'BeanId',					// the name to be used if diff from the filename
- *			'piority'		=> 1,							// priority. If another bean is defined with the same ID, 
+ *			'priority'		=> 1,							// priority. If another bean is defined with the same ID, 
  *															// but has a lower priority, it is NOT overridden
  *			'class'			=> 'ClassName',					// the name of the PHP class
  *			'src'			=> '/path/to/file'				// the location of the class
- *			'type'			=> 'singleton|prototype'		// if you want prototype object generation, set it as the type
+ *			'type'			=> 'singleton|prototype'		// if you want prototype object generation, set it as the
+ *			                                                // type
  *															// By default, singleton is assumed
  *
  *			'construct'		=> array(						// properties to set at construction
  *				'scalar',									
- *				'#$BeanId',
+ *				'%$BeanId',
  *			)
  *			'properties'	=> array(
  *				'name' => 'value'							// scalar value
- *				'name' => '#$BeanId',						// a reference to another bean
+ *				'name' => '%$BeanId',						// a reference to another bean
  *				'name' => array(
  *					'scalar',
- *					'#$BeanId'
+ *					'%$BeanId'
  *				)
  *			)
  *		)
@@ -58,8 +105,29 @@
  *
  * In addition to specifying the bindings directly in the configuration,
  * you can simply create a publicly accessible property on the target
- * class which will automatically be injected.
- *
+ * class which will automatically be injected if the autoScanProperties 
+ * option is set to true. This means a class defined as
+ * 
+ * <code>
+ * class MyController extends Controller {
+ * 
+ *		private $permissionService;
+ * 
+ *		public setPermissionService($p) {
+ *			$this->permissionService = $p;
+ *		} 
+ * }
+ * </code>
+ * 
+ * will have setPermissionService called if
+ * 
+ * * Injector::inst()->setAutoScanProperties(true) is called and
+ * * A service named 'PermissionService' has been configured 
+ * 
+ * @author marcus@silverstripe.com.au
+ * @package framework
+ * @subpackage injector
+ * @license BSD License http://silverstripe.org/bsd-license/
  */
 class Injector {
 
@@ -85,8 +153,8 @@ class Injector {
 	private $specs;
 	
 	/**
-	 * A map of all the properties that should be automagically set on a 
-	 * service
+	 * A map of all the properties that should be automagically set on all 
+	 * objects instantiated by the injector
 	 */
 	private $autoProperties;
 
@@ -97,22 +165,26 @@ class Injector {
 	 */
 	private static $instance;
 	
-	
 	/**
 	 * Indicates whether or not to automatically scan properties in injected objects to auto inject
 	 * stuff, similar to the way grails does things. 
-	 *
+	 * 
 	 * @var boolean
 	 */
 	private $autoScanProperties = false;
 	
 	/**
 	 * The object used to create new class instances
+	 * 
+	 * Use a custom class here to change the way classes are created to use
+	 * a custom creation method. By default the InjectionCreator class is used,
+	 * which simply creates a new class via 'new', however this could be overridden
+	 * to use, for example, SilverStripe's Object::create() method.
 	 *
 	 * @var InjectionCreator
 	 */
 	protected $objectCreator;
-	
+
 	/**
 	 * Create a new injector. 
 	 *
@@ -121,13 +193,22 @@ class Injector {
 	 */
 	public function __construct($config = null) {
 		$this->injectMap = array();
-		$this->serviceCache = array();
+		$this->serviceCache = array(
+			'Injector'		=> $this,
+		);
+		$this->specs = array(
+			'Injector'		=> array('class' => 'Injector')
+		);
+		
 		$this->autoProperties = array();
 		$this->specs = array();
 
 		$creatorClass = isset($config['creator']) ? $config['creator'] : 'InjectionCreator';
+		$locatorClass = isset($config['locator']) ? $config['locator'] : 'ServiceConfigurationLocator';
+		
 		$this->objectCreator = new $creatorClass;
-
+		$this->configLocator = new $locatorClass;
+		
 		if ($config) {
 			$this->load($config);
 		}
@@ -139,6 +220,7 @@ class Injector {
 	 * If a user wants to use the injector as a static reference
 	 *
 	 * @param array $config
+	 * @return Injector
 	 */
 	public static function inst($config=null) {
 		if (!self::$instance) {
@@ -163,6 +245,30 @@ class Injector {
 	 */
 	public function setObjectCreator($obj) {
 		$this->objectCreator = $obj;
+	}
+	
+	/**
+	 * Accessor (for testing purposes)
+	 * @return InjectionCreator
+	 */
+	public function getObjectCreator() {
+		return $this->objectCreator;
+	}
+	
+	/**
+	 * Set the configuration locator 
+	 * @param ServiceConfigurationLocator $configLocator 
+	 */
+	public function setConfigLocator($configLocator) {
+		$this->configLocator = $configLocator;
+	}
+	
+	/**
+	 * Retrieve the configuration locator 
+	 * @return ServiceConfigurationLocator 
+	 */
+	public function getConfigLocator() {
+		return $this->configLocator;
 	}
 	
 	/**
@@ -203,6 +309,7 @@ class Injector {
 	 */
 	public function addAutoProperty($property, $object) {
 		$this->autoProperties[$property] = $object;
+		return $this;
 	}
 
 	/**
@@ -258,7 +365,9 @@ class Injector {
 			$spec['id'] = $id;
 
 //			We've removed this check because new functionality means that the 'class' field doesn't need to refer
-//			specifically to a class anymore - it could be a compound statement. 
+//			specifically to a class anymore - it could be a compound statement, ala SilverStripe's old Object::create
+//			functionality
+//			
 //			if (!class_exists($class)) {
 //				throw new Exception("Failed to load '$class' from $file");
 //			}
@@ -269,11 +378,61 @@ class Injector {
 			// EXCEPT when there's already an existing instance at this id.
 			// if so, we need to instantiate and replace immediately
 			if (isset($this->serviceCache[$id])) {
+				$this->updateSpecConstructor($spec);
 				$this->instantiate($spec, $id);
 			}
 		}
 
 		return $this;
+	}
+	
+	/**
+	 * Update the configuration of an already defined service
+	 * 
+	 * Use this if you don't want to register a complete new config, just append
+	 * to an existing configuration. Helpful to avoid overwriting someone else's changes
+	 * 
+	 * updateSpec('RequestProcessor', 'filters', '%$MyFilter')
+	 *
+	 * @param string $id
+	 *				The name of the service to update the definition for
+	 * @param string $property
+	 *				The name of the property to update. 
+	 * @param mixed $value 
+	 *				The value to set
+	 * @param boolean $append
+	 *				Whether to append (the default) when the property is an array
+	 */
+	public function updateSpec($id, $property, $value, $append = true) {
+		if (isset($this->specs[$id]['properties'][$property])) {
+			// by ref so we're updating the actual value
+			$current = &$this->specs[$id]['properties'][$property];
+			if (is_array($current) && $append) {
+				$current[] = $value;
+			} else {
+				$this->specs[$id]['properties'][$property] = $value;
+			}
+			
+			// and reload the object; existing bindings don't get
+			// updated though! (for now...) 
+			if (isset($this->serviceCache[$id])) {
+				$this->instantiate($spec, $id);
+			}
+		}
+	}
+	
+	/**
+	 * Update a class specification to convert constructor configuration information if needed
+	 * 
+	 * We do this as a separate process to avoid unneeded calls to convertServiceProperty 
+	 * 
+	 * @param array $spec
+	 *			The class specification to update
+	 */
+	protected function updateSpecConstructor(&$spec) {
+		if (isset($spec['constructor'])) {
+			$spec['constructor'] = $this->convertServiceProperty($spec['constructor']);
+		}
 	}
 
 	/**
@@ -291,11 +450,8 @@ class Injector {
 			return $newVal;
 		}
 		
-		if (is_string($value) && strpos($value, '#$') === 0) {
+		if (is_string($value) && strpos($value, '%$') === 0) {
 			$id = substr($value, 2);
-			if (!$this->hasService($id)) {
-				throw new Exception("Undefined service $id for property when trying to resolve property");
-			}
 			return $this->get($id);
 		}
 		return $value;
@@ -308,7 +464,7 @@ class Injector {
 	 *
 	 * array(
 	 *		'class' => 'ClassName',
-	 *		'properties' => array('property' => 'scalar', 'other' => '#$BeanRef')
+	 *		'properties' => array('property' => 'scalar', 'other' => '%$BeanRef')
 	 *		'id' => 'ServiceId',
 	 *		'type' => 'singleton|prototype'
 	 * )
@@ -320,11 +476,18 @@ class Injector {
 	 * 
 	 * To access this from the outside, you should call ->get('Name') to ensure
 	 * the appropriate checks are made on the specific type. 
+	 * 
 	 *
 	 * @param array $spec
 	 *				The specification of the class to instantiate
+	 * @param string $id
+	 *				The name of the object being created. If not supplied, then the id will be inferred from the
+	 *				object being created
+	 * @param string $type
+	 *				Whether to create as a singleton or prototype object. Allows code to be explicit as to how it
+	 *				wants the object to be returned
 	 */
-	protected function instantiate($spec, $id=null) {
+	protected function instantiate($spec, $id=null, $type = null) {
 		if (is_string($spec)) {
 			$spec = array('class' => $spec);
 		}
@@ -336,7 +499,7 @@ class Injector {
 			$constructorParams = $spec['constructor'];
 		}
 
-		$object = $this->objectCreator->create($this, $class, $constructorParams);
+		$object = $this->objectCreator->create($class, $constructorParams);
 		
 		// figure out if we have a specific id set or not. In some cases, we might be instantiating objects
 		// that we don't manage directly; we don't want to store these in the service cache below
@@ -346,7 +509,10 @@ class Injector {
 
 		// now set the service in place if needbe. This is NOT done for prototype beans, as they're
 		// created anew each time
-		$type = isset($spec['type']) ? $spec['type'] : null; 
+		if (!$type) {
+			$type = isset($spec['type']) ? $spec['type'] : null; 
+		}
+		
 		if ($id && (!$type || $type != 'prototype')) {
 			// this ABSOLUTELY must be set before the object is injected.
 			// This prevents circular reference errors down the line
@@ -361,6 +527,10 @@ class Injector {
 
 	/**
 	 * Inject $object with available objects from the service cache
+	 * 
+	 * @todo Track all the existing objects that have had a service bound
+	 * into them, so we can update that binding at a later point if needbe (ie
+	 * if the managed service changes)
 	 *
 	 * @param object $object
 	 *				The object to inject
@@ -440,10 +610,11 @@ class Injector {
 				}
 			}
 		}
-		
+
+		$injections = Config::inst()->get(get_class($object), 'dependencies');
 		// If the type defines some injections, set them here
-		if (isset($object::$injections)) {
-			foreach ($object::$injections as $property => $value) {
+		if ($injections && count($injections)) {
+			foreach ($injections as $property => $value) {
 				// we're checking isset in case it already has a property at this name
 				// this doesn't catch privately set things, but they will only be set by a setter method, 
 				// which should be responsible for preventing further setting if it doesn't want it. 
@@ -515,6 +686,13 @@ class Injector {
 	/**
 	 * Register a service object with an optional name to register it as the
 	 * service for
+	 * 
+	 * @param stdClass $service
+	 *					The object to register
+	 * @param string $replace
+	 *					The name of the object to replace (if different to the 
+	 *					class name of the object to register)
+	 * 
 	 */
 	public function registerService($service, $replace=null) {
 		$registerAt = get_class($service);
@@ -535,31 +713,115 @@ class Injector {
 	}
 	
 	/**
+	 * Removes a named object from the cached list of objects managed
+	 * by the inject
+	 * 
+	 * @param type $name 
+	 *				The name to unregister
+	 */
+	public function unregisterNamedObject($name) {
+		unset($this->serviceCache[$name]);
+	}
+
+	/**
+	 * Clear out all objects that are managed by the injetor. 
+	 */
+	public function unregisterAllObjects() {
+		$this->serviceCache = array('Injector' => $this);
+	}
+	
+	/**
 	 * Get a named managed object
 	 * 
 	 * @param $name the name of the service to retrieve
 	 */
-	public function get($name) {
+	public function get($name, $asSingleton = true, $constructorArgs = null) {
 		// reassign the name as it might actually be a compound name
 		if ($serviceName = $this->hasService($name)) {
 			// check to see what the type of bean is. If it's a prototype,
 			// we don't want to return the singleton version of it.
 			$spec = $this->specs[$serviceName];
 			$type = isset($spec['type']) ? $spec['type'] : null;
-
-			if ($type && $type == 'prototype') {
-				return $this->instantiate($spec, $serviceName);
+			
+			// if we're explicitly a prototype OR we're not wanting a singleton
+			if (($type && $type == 'prototype') || !$asSingleton) {
+				if ($spec && $constructorArgs) {
+					$spec['constructor'] = $constructorArgs;
+				} else {
+					// convert any _configured_ constructor args. 
+					// we don't call this for get() calls where someone passes in 
+					// constructor args, otherwise we end up calling convertServiceParams
+					// way too often
+					$this->updateSpecConstructor($spec);
+				}
+				return $this->instantiate($spec, $serviceName, !$type ? 'prototype' : $type);
 			} else {
 				if (!isset($this->serviceCache[$serviceName])) {
+					$this->updateSpecConstructor($spec);
 					$this->instantiate($spec, $serviceName);
 				}
 				return $this->serviceCache[$serviceName];
 			}
 		}
 		
-		// If no specific config for this object, we'll just return a new instance
-		// of the object, which means it'll get instantiated and injected appropriately
-		return $this->instantiate($name);
+		$config = $this->configLocator->locateConfigFor($name);
+		if ($config) {
+			$this->load(array($name => $config));
+			if (isset($this->specs[$name])) {
+				$spec = $this->specs[$name];
+				$this->updateSpecConstructor($spec);
+				return $this->instantiate($spec, $name);
+			}
+		}
+
+		// If we've got this far, we're dealing with a case of a user wanting 
+		// to create an object based on its name. So, we need to fake its config
+		// if the user wants it managed as a singleton service style object
+		$spec = array('class' => $name, 'constructor' => $constructorArgs);
+		if ($asSingleton) {
+			// need to load the spec in; it'll be given the singleton type by default
+			$this->load(array($name => $spec));
+			return $this->instantiate($spec, $name);
+		}
+
+		return $this->instantiate($spec);
+	}
+	
+	/**
+	 * Magic method to return an item directly
+	 * 
+	 * @param string $name
+	 *				The named object to retrieve
+	 * @return mixed
+	 */
+	public function __get($name) {
+		return $this->get($name);
+	}
+
+	/**
+	 * Similar to get() but always returns a new object of the given type
+	 * 
+	 * Additional parameters are passed through as 
+	 * 
+	 * @param type $name 
+	 */
+	public function create($name) {
+		$constructorArgs = func_get_args();
+		array_shift($constructorArgs);
+		return $this->get($name, false, count($constructorArgs) ? $constructorArgs : null);
+	}
+	
+	/**
+	 * Creates an object with the supplied argument array
+	 *   
+	 * @param string $name
+	 *				Name of the class to create an object of
+	 * @param array $args
+	 *				Arguments to pass to the constructor
+	 * @return mixed
+	 */
+	public function createWithArgs($name, $constructorArgs) {
+		return $this->get($name, false, $constructorArgs);
 	}
 }
 
@@ -574,10 +836,10 @@ class InjectionCreator {
 	 * @param array $params
 	 *					An array of parameters to be passed to the constructor
 	 */
-	public function create(Injector $injector, $class, $params = array()) {
+	public function create($class, $params = array()) {
 		$reflector = new ReflectionClass($class);
 		if (count($params)) {
-			return $reflector->newInstanceArgs($injector->convertServiceProperty($params));
+			return $reflector->newInstanceArgs($params); 
 		}
 		return $reflector->newInstance();
 	}

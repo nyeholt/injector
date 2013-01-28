@@ -1,7 +1,5 @@
 <?php
 
-include_once dirname(dirname(dirname(__FILE__))) . '/Injector.php';
-
 define('TEST_SERVICES', dirname(dirname(__FILE__)) . '/services');
 
 class TestInjector extends UnitTestCase {

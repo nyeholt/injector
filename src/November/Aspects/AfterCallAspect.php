@@ -1,5 +1,7 @@
 <?php
 
+namespace November\Aspects;
+
 /**
  * An AfterCallAspect is run after a method is executed
  * 

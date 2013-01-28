@@ -1,5 +1,7 @@
 <?php
 
+namespace November\Aspects;
+
 /**
  * A class that proxies another, allowing various functionality to be
  * injected

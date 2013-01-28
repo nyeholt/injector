@@ -2,8 +2,8 @@
 
 namespace November\Tests;
 
+use November\Injection\Injector;
 use November\Injection\InjectionCreator;
-
 
 define('TEST_SERVICES', dirname(dirname(__FILE__)) . '/services');
 

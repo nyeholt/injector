@@ -203,9 +203,9 @@ class Injector {
 		$this->autoProperties = array();
 		$this->specs = array();
 
-		$creatorClass = isset($config['creator']) ? $config['creator'] : 'InjectionCreator';
-		$locatorClass = isset($config['locator']) ? $config['locator'] : 'ServiceConfigurationLocator';
-		
+		$creatorClass = isset($config['creator']) ? $config['creator'] : 'November\\Injection\\InjectionCreator';
+		$locatorClass = isset($config['locator']) ? $config['locator'] : 'November\\Injection\\ServiceConfigurationLocator';
+
 		$this->objectCreator = new $creatorClass;
 		$this->configLocator = new $locatorClass;
 		
@@ -825,22 +825,4 @@ class Injector {
 	}
 }
 
-/**
- * A class for creating new objects by the injector
- */
-class InjectionCreator {
-	/**
-	 *
-	 * @param string $object
-	 *					A string representation of the class to create
-	 * @param array $params
-	 *					An array of parameters to be passed to the constructor
-	 */
-	public function create($class, $params = array()) {
-		$reflector = new ReflectionClass($class);
-		if (count($params)) {
-			return $reflector->newInstanceArgs($params); 
-		}
-		return $reflector->newInstance();
-	}
-}
+

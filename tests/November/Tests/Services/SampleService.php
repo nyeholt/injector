@@ -1,4 +1,5 @@
 <?php
+namespace November\Tests\Services;
 
 class SampleService
 {

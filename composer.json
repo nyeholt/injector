@@ -1,0 +1,30 @@
+{
+    "name": "november/injector",
+    "type": "library",
+    "description": "A dependency injector loosely modelled on Spring",
+    "keywords": ["dependency injector"],
+    "homepage": "https://github.com/nyeholt/injector",
+    "license": "BSD-3-Clause",
+    "authors": [
+        {
+            "name": "Marcus Nyeholt",
+            "email": "nyeholt@gmail.com",
+            "homepage": "http://mikenovember.com"
+        }
+    ],
+    "require": {
+        "php": ">=5.3.2"
+    },
+
+    "autoload": {
+        "psr-0": {
+            "November\\Tests": "tests/",
+            "November": "src/"
+        }
+    },
+
+    "require-dev": {
+//        "symfony/class-loader": "*",
+        "phpunit/phpunit": "3.7.*"
+    }
+}

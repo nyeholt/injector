@@ -16,4 +16,10 @@ class ServiceConfigurationLocator {
 	public function locateConfigFor($name) {
 		
 	}
+	
+	public function configuredDependenciesFor($object) {
+		if (isset($object::$dependencies)) {
+			return $object::$dependencies;
+		}
+	}
 }

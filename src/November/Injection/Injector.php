@@ -557,10 +557,10 @@ class Injector {
 		if (!$mapping) {
 			if ($this->autoScanProperties) {
 				// we use an object to prevent array copies if/when passed around
-				$mapping = new ArrayObject();
+				$mapping = new \ArrayObject();
 
 				// This performs public variable based injection
-				$robj = new ReflectionObject($object);
+				$robj = new \ReflectionObject($object);
 				$properties = $robj->getProperties();
 
 				foreach ($properties as $propertyObject) {
@@ -578,7 +578,7 @@ class Injector {
 				}
 
 				// and this performs setter based injection
-				$methods = $robj->getMethods(ReflectionMethod::IS_PUBLIC);
+				$methods = $robj->getMethods(\ReflectionMethod::IS_PUBLIC);
 
 				foreach ($methods as $methodObj) {
 					/* @var $methodObj ReflectionMethod */
@@ -611,7 +611,8 @@ class Injector {
 			}
 		}
 
-		$injections = Config::inst()->get(get_class($object), 'dependencies');
+		$injections = $this->configLocator->configuredDependenciesFor($object);
+
 		// If the type defines some injections, set them here
 		if ($injections && count($injections)) {
 			foreach ($injections as $property => $value) {

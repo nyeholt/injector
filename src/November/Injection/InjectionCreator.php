@@ -14,7 +14,7 @@ class InjectionCreator {
 	 *					An array of parameters to be passed to the constructor
 	 */
 	public function create($class, $params = array()) {
-		$reflector = new ReflectionClass($class);
+		$reflector = new \ReflectionClass($class);
 		if (count($params)) {
 			return $reflector->newInstanceArgs($params); 
 		}

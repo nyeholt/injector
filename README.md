@@ -1,4 +1,6 @@
 
+[![Build Status](https://secure.travis-ci.org/nyeholt/injector.png)](http://travis-ci.org/nyeholt/injector)
+
 A PHP dependency injector that does
 
 * Singleton or Prototype object management
